@@ -36,8 +36,22 @@ def test_valid_doc_routed_to_archivio(tmp_path):
     process_file(src, ctx)
     out = tmp_path / "archivio/Casa/Utenze/Gas/2024-03-15_Enel_bolletta_gas.pdf"
     assert out.exists()
-    assert (tmp_path / "originali/scan.pdf").exists()
+    # backup univoco con prefisso sha (F1)
+    assert len(list((tmp_path / "originali").glob("*_scan.pdf"))) == 1
     assert len(ctx.db.search("gas")) == 1
+
+def test_backup_no_overwrite_on_same_name(tmp_path):
+    # F1: due file DIVERSI con lo stesso nome -> entrambi salvati in originali
+    ctx = make_ctx(tmp_path, {"valido": False})
+    a = tmp_path / "IMG_0001.pdf"; a.write_text("contenuto A")
+    process_file(a, ctx)
+    # secondo file, stesso nome, contenuto diverso
+    a.write_text("contenuto B DIVERSO")
+    process_file(a, ctx)
+    backups = sorted((tmp_path / "originali").glob("*_IMG_0001.pdf"))
+    assert len(backups) == 2
+    contents = {b.read_text() for b in backups}
+    assert contents == {"contenuto A", "contenuto B DIVERSO"}
 
 def test_invalid_doc_routed_to_dasmistare(tmp_path):
     src = tmp_path / "scan.pdf"; src.write_text("x")

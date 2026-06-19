@@ -28,3 +28,11 @@ def test_already_processed(tmp_path):
     assert db.already_processed("abc123") is False
     db.insert(make_doc())
     assert db.already_processed("abc123") is True
+
+def test_record_error_increments(tmp_path):
+    db = Database(tmp_path / "index.db")
+    assert db.record_error("sha9", "scan.pdf", "boom") == 1
+    assert db.record_error("sha9", "scan.pdf", "boom2") == 2
+    assert db.record_error("sha9", "scan.pdf", "boom3") == 3
+    # file diverso conta a parte
+    assert db.record_error("altro", "x.pdf", "err") == 1

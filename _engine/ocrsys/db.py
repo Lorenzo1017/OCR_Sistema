@@ -16,6 +16,12 @@ CREATE TRIGGER IF NOT EXISTS doc_ai AFTER INSERT ON documenti BEGIN
     INSERT INTO documenti_fts(rowid, mittente, tipo, testo_completo)
     VALUES (new.id, new.mittente, new.tipo, new.testo_completo);
 END;
+CREATE TABLE IF NOT EXISTS errori (
+    sha256 TEXT PRIMARY KEY,
+    nome TEXT,
+    tentativi INTEGER NOT NULL DEFAULT 0,
+    ultimo_errore TEXT
+);
 """
 
 
@@ -43,6 +49,22 @@ class Database:
             tuple(doc[c] for c in cols),
         )
         self.conn.commit()
+
+    def record_error(self, sha256: str, nome: str, errore: str) -> int:
+        """Registra un fallimento su un file. Ritorna il numero di tentativi
+        totali (incrementale)."""
+        self.conn.execute(
+            "INSERT INTO errori (sha256, nome, tentativi, ultimo_errore) "
+            "VALUES (?, ?, 1, ?) "
+            "ON CONFLICT(sha256) DO UPDATE SET "
+            "tentativi = tentativi + 1, ultimo_errore = excluded.ultimo_errore",
+            (sha256, nome, errore),
+        )
+        self.conn.commit()
+        cur = self.conn.execute(
+            "SELECT tentativi FROM errori WHERE sha256 = ?", (sha256,)
+        )
+        return cur.fetchone()[0]
 
     def search(self, query: str) -> list:
         cur = self.conn.execute(

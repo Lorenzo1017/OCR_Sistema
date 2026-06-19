@@ -45,7 +45,10 @@ def process_file(src: Path, ctx: Context) -> str:
     if ctx.db.already_processed(sha):
         return "skip"
 
-    backup = ctx.base / "originali" / src.name
+    # backup univoco per contenuto: prefisso sha evita che due scansioni
+    # diverse con lo STESSO nome (es. IMG_0001.pdf) si sovrascrivano e
+    # perdano l'originale. Stesso contenuto -> stesso nome -> non duplica.
+    backup = ctx.base / "originali" / f"{sha[:10]}_{src.name}"
     if not backup.exists():
         shutil.copy2(src, backup)
 
@@ -54,7 +57,7 @@ def process_file(src: Path, ctx: Context) -> str:
         ctx.ocr_to_pdf(src, tmp_pdf)
         text, n_pagine = ctx.extract_text(tmp_pdf)
 
-        (ctx.base / "text" / f"{src.stem}.txt").write_text(text)
+        (ctx.base / "text" / f"{sha[:10]}_{src.stem}.txt").write_text(text)
 
         meta = ctx.classify(text, ctx.taxonomy)
         # Qwen puo' restituire data in formati vari (15/03/2024): normalizza
