@@ -4,3 +4,13 @@ __pycache__/
 *.pyc
 .pytest_cache/
 log_*.csv
+log_*.txt
+
+# dati utente: documenti, non vanno versionati
+inbox/
+archivio/
+originali/
+text/
+_DaSmistare/
+.DS_Store
+.ocr.lock

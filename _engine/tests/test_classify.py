@@ -1,7 +1,31 @@
-from ocrsys.classify import parse_response
+from ocrsys.classify import parse_response, valuta_utenza
 from ocrsys.taxonomy import Taxonomy
 
 TAX = Taxonomy({"Casa/Utenze/Gas", "Salute/Referti"})
+
+def test_valuta_utenza_autocorregge_acqua_da_luce():
+    # bolletta acqua (con 1 riga boilerplate "energia elettrica") messa in Luce
+    txt = ("Acque Venete fornitura idrica acqua acque depurazione fognatura "
+           "consumo acqua. Non comprende energia elettrica.")
+    nuova, ok = valuta_utenza("Casa/Utenze/Luce", txt)
+    assert ok is True
+    assert nuova == "Casa/Utenze/Acqua"   # dominanza netta -> corretto
+
+def test_valuta_utenza_scelta_coerente_invariata():
+    txt = "Enel gas naturale consumo 142 Smc gas"
+    assert valuta_utenza("Casa/Utenze/Gas", txt) == ("Casa/Utenze/Gas", True)
+
+def test_valuta_utenza_non_utenza_passa():
+    assert valuta_utenza("Salute/Referti", "qualsiasi testo") == ("Salute/Referti", True)
+
+def test_valuta_utenza_nessun_segnale_fiducia_al_modello():
+    assert valuta_utenza("Casa/Utenze/Gas", "documento generico") == ("Casa/Utenze/Gas", True)
+
+def test_valuta_utenza_mismatch_ambiguo_a_dasmistare():
+    # un solo accenno a un'altra utenza, non dominante -> _DaSmistare
+    txt = "fattura con un riferimento ad acqua una volta"
+    nuova, ok = valuta_utenza("Casa/Utenze/Gas", txt)
+    assert ok is False
 
 def test_parse_valid():
     raw = '{"data":"2024-03-15","mittente":"Enel","tipo":"bolletta",' \

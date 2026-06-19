@@ -1,13 +1,13 @@
 import json
 import re
 import urllib.request
-from .config import OLLAMA_MODEL, OLLAMA_URL
+from .config import OLLAMA_MODEL, OLLAMA_URL, OLLAMA_KEEP_ALIVE
 from .taxonomy import Taxonomy
 
 _REQUIRED = {"data", "mittente", "tipo", "dettaglio", "categoria", "confidenza"}
 
-_PROMPT = """Sei un archivista. Leggi il testo OCR di un documento e rispondi
-SOLO con un oggetto JSON, senza altro testo.
+_PROMPT = """Sei un archivista esperto. Leggi il testo OCR di un documento e
+classificalo. Rispondi SOLO con un oggetto JSON, senza altro testo.
 
 Categorie ammesse (scegli ESATTAMENTE una di queste stringhe, niente altro):
 {categorie}
@@ -16,12 +16,21 @@ Schema richiesto:
 {{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","confidenza":"alta|media|bassa"}}
 
 Regole:
-- "data" = data di emissione del documento. Se non sicura, usa "".
-- "mittente" = chi emette (es. Enel, Agenzia Entrate). Breve.
-- "tipo" = natura (bolletta, fattura, referto, contratto...).
-- "dettaglio" = specifica breve (gas, IMU, auto...) o "".
-- "categoria" DEVE essere una delle ammesse. Se nessuna calza, usa "".
-- "confidenza" = quanto sei sicuro della categoria.
+- Ragiona prima sul MITTENTE e sul TIPO di documento, poi scegli la categoria piu' coerente.
+- "data" = data di emissione del documento (formato AAAA-MM-GG). Se non sicura, usa "".
+- "mittente" = chi emette (es. Enel, Agenzia delle Entrate, Vodafone). Breve.
+- "tipo" = natura (bolletta, fattura, referto, contratto, cartella, busta paga...).
+- "dettaglio" = specifica breve (gas, internet, IMU, auto...) o "".
+- "categoria" DEVE essere una delle ammesse sopra. Se nessuna calza, usa "".
+- "confidenza" = quanto sei sicuro della categoria (alta/media/bassa).
+
+Esempi (mittente -> categoria):
+- Enel/Eni/A2A bolletta luce o gas -> Casa/Utenze/Luce o Casa/Utenze/Gas
+- Vodafone/TIM/WindTre/Iliad fattura telefono o internet -> Casa/Utenze/Internet o Casa/Utenze/Telefono
+- Agenzia delle Entrate, cartella o IMU/TARI -> Fisco-Tasse/IMU-TARI
+- Ospedale/ASL/laboratorio analisi, referto -> Salute/Referti
+- Banca (Intesa, Unicredit...), estratto conto -> Banca-Finanze/EstrattiConto
+- Datore di lavoro, busta paga/cedolino -> Lavoro/BustePaga
 
 Testo OCR (primi caratteri):
 ---
@@ -63,22 +72,79 @@ def parse_response(raw: str, taxonomy: Taxonomy) -> dict:
     }
 
 
+# Parole chiave per disambiguare i sotto-tipi di utenza (errore comune del 7B:
+# bolletta acqua filata sotto Luce per via di una riga di boilerplate). Si conta
+# quante volte ricorre ogni gruppo: vince l'utenza con piu' riscontri.
+_UTENZE_KW = {
+    "Gas": ["gas", "smc", "metano"],
+    "Luce": ["energia elettrica", "kwh", "elettric", "kw "],
+    "Acqua": ["acqua", "acque", "idric", "acquedott", "fognatura", "depurazione"],
+    "Internet": ["internet", "fibra", "adsl", "giga", "banda larga"],
+    "Telefono": ["telefon", "mobile", "sim", "ricarica", "cellulare"],
+}
+
+
+def _punteggi(text: str) -> dict:
+    t = text.lower()
+    return {leaf: sum(t.count(k) for k in kws) for leaf, kws in _UTENZE_KW.items()}
+
+
+def valuta_utenza(categoria: str, text: str):
+    """Per categorie Casa/Utenze/*: confronta la scelta del modello col testo.
+    Ritorna (categoria_finale, valido).
+    - dominante chiaro diverso dalla scelta -> auto-correzione;
+    - mismatch non dominante -> valido=False (-> _DaSmistare);
+    - scelta coerente o nessun segnale -> invariato."""
+    leaf = categoria.split("/")[-1]
+    if leaf not in _UTENZE_KW:
+        return categoria, True
+    sc = _punteggi(text)
+    best = max(sc, key=sc.get)
+    best_s = sc[best]
+    if best_s == 0:
+        return categoria, True            # nessun segnale: fiducia al modello
+    if best == leaf:
+        return categoria, True            # scelta coerente
+    # un'altra utenza ha piu' riscontri della scelta
+    if best_s >= 3 and best_s >= 3 * sc.get(leaf, 0):
+        return f"Casa/Utenze/{best}", True   # dominanza netta -> correggi
+    return categoria, False               # mismatch ambiguo -> _DaSmistare
+
+
 def _call_ollama(prompt: str) -> str:
     payload = json.dumps({
         "model": OLLAMA_MODEL, "prompt": prompt,
         "stream": False, "format": "json",
+        "keep_alive": OLLAMA_KEEP_ALIVE,   # modello si scarica dopo l'uso
         "options": {"temperature": 0},
     }).encode()
-    req = urllib.request.Request(
-        OLLAMA_URL, data=payload, headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        body = json.loads(resp.read())
-    return body.get("response", "")
+    # 1 retry su blip transitori (server che ha appena caricato il modello)
+    last = None
+    for tentativo in range(2):
+        try:
+            req = urllib.request.Request(
+                OLLAMA_URL, data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=180) as resp:
+                body = json.loads(resp.read())
+            return body.get("response", "")
+        except OSError as e:   # URLError e socket.timeout sono sottoclassi
+            last = e
+    raise last
 
 
 def classify(text: str, taxonomy: Taxonomy) -> dict:
     categorie = "\n".join(sorted(taxonomy.valid_paths()))
     prompt = _PROMPT.format(categorie=categorie, testo=text[:4000])
     raw = _call_ollama(prompt)
-    return parse_response(raw, taxonomy)
+    r = parse_response(raw, taxonomy)
+    # guardia utenze: usa testo OCR + dettaglio/tipo del modello come evidenza.
+    if r.get("valido") and r["categoria"].startswith("Casa/Utenze/"):
+        evidenza = f"{r.get('dettaglio','')} {r.get('tipo','')} {text}"
+        nuova, ok = valuta_utenza(r["categoria"], evidenza)
+        if not ok:
+            r["valido"] = False
+        else:
+            r["categoria"] = nuova
+    return r
