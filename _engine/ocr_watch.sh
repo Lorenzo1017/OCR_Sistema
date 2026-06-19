@@ -3,7 +3,7 @@
 # Controlla inbox/, se ci sono file li processa. Altrimenti esce silenzioso.
 set -uo pipefail
 
-BASE="$HOME/Documents/OCR_Sistema"
+BASE="$HOME/OCR_Sistema"
 ENGINE="$BASE/_engine"
 LOG="$BASE/log_auto.txt"
 LOCKDIR="$BASE/.watch.lock"

@@ -1,0 +1,49 @@
+# Albero categorie per smistamento documenti.
+# Qwen sceglie SOLO tra questi rami. Nessun match sicuro -> _DaSmistare.
+# Modifica liberamente: aggiungi/togli rami, poi rilancia. Niente codice da toccare.
+
+Casa:
+  Utenze: [Gas, Luce, Acqua, Internet, Telefono]
+  Affitto-Mutuo: []
+  Condominio: []
+  Manutenzione: []
+
+Fisco-Tasse:
+  DichiarazioneRedditi: []
+  IMU-TARI: []
+  F24: []
+  CartelleEsattoriali: []
+
+Banca-Finanze:
+  EstrattiConto: []
+  Investimenti: []
+  Prestiti: []
+
+Lavoro:
+  BustePaga: []
+  Contratti: []
+  CUD-CertificazioneUnica: []
+
+Salute:
+  Referti: []
+  Ricette-Prescrizioni: []
+  Fatture-Mediche: []
+
+Veicoli:
+  Assicurazione: []
+  Bollo: []
+  Manutenzione: []
+  Multe: []
+
+Assicurazioni:
+  Casa: []
+  Vita: []
+  Altro: []
+
+Documenti-Personali:
+  Identita: []
+  Certificati: []
+  Diplomi-Titoli: []
+
+Acquisti-Garanzie: []
+Famiglia-Scuola: []

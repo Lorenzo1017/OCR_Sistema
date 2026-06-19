@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# ~/Documents/OCR_Sistema/_engine/setup.sh
+# ~/OCR_Sistema/_engine/setup.sh
 set -euo pipefail
 
-BASE="$HOME/Documents/OCR_Sistema"
+BASE="$HOME/OCR_Sistema"
 ENGINE="$BASE/_engine"
 
 echo "==> Installo dipendenze di sistema (Homebrew)..."

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-BASE = Path.home() / "Documents" / "OCR_Sistema"
+BASE = Path.home() / "OCR_Sistema"
 
 INBOX = BASE / "inbox"
 ARCHIVIO = BASE / "archivio"
