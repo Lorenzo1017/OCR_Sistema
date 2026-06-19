@@ -12,8 +12,12 @@ def _slug(s: str) -> str:
     return s.strip("-")
 
 
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
 def build_name(data, mittente, tipo, dettaglio) -> str:
-    d = data if data else "0000-00-00"
+    # difesa: accetta solo data gia' in formato AAAA-MM-GG, mai slash nel nome
+    d = data if (data and _ISO_DATE.match(data)) else "0000-00-00"
     parts = [_slug(mittente) or "Ignoto", _slug(tipo) or "documento"]
     det = _slug(dettaglio)
     if det:

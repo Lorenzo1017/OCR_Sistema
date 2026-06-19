@@ -27,11 +27,12 @@ def main():
             if status == "ok":
                 ok += 1; print("OK")
             elif status == "skip":
-                skip += 1; print("gia fatto, salto")
+                skip += 1; print("gia fatto (duplicato), rimuovo da inbox")
             else:
                 dasmistare += 1; print("-> _DaSmistare")
-            if status != "skip":
-                f.unlink()
+            # rimuovi sempre l'originale dalla inbox: ok/dasmistare = archiviato
+            # + backup in originali/; skip = duplicato gia' presente in archivio.
+            f.unlink()
         except Exception as e:
             errori += 1
             print(f"ERRORE: {e}")

@@ -8,7 +8,7 @@ from typing import Callable
 
 from . import config
 from .db import Database
-from .dates import extract_date
+from .dates import extract_date, normalize_date
 from .naming import build_name, resolve_collision
 from .taxonomy import Taxonomy
 
@@ -57,7 +57,9 @@ def process_file(src: Path, ctx: Context) -> str:
         (ctx.base / "text" / f"{src.stem}.txt").write_text(text)
 
         meta = ctx.classify(text, ctx.taxonomy)
-        data = meta.get("data") or extract_date(text)
+        # Qwen puo' restituire data in formati vari (15/03/2024): normalizza
+        # sempre in AAAA-MM-GG, con fallback all'estrazione dal testo.
+        data = normalize_date(meta.get("data")) or extract_date(text)
 
         if meta.get("valido") and ctx.taxonomy.is_valid(meta["categoria"]):
             dest_dir = ctx.base / "archivio" / meta["categoria"]
