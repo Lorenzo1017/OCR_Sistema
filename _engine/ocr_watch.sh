@@ -11,6 +11,11 @@ LOG="$BASE/log_auto.txt"
 MODEL="qwen2.5:7b"
 API="http://localhost:11434/api/tags"
 
+# Notifica macOS (no install). Fallisce silenziosa se non disponibile.
+notify() {  # $1 titolo  $2 messaggio
+  /usr/bin/osascript -e "display notification \"$2\" with title \"$1\" sound name \"Glass\"" >/dev/null 2>&1 || true
+}
+
 # Homebrew + binari di sistema nel PATH (launchd parte con PATH minimo)
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
@@ -18,6 +23,9 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 shopt -s nullglob dotglob
 files=("$BASE/inbox"/*)
 [ ${#files[@]} -eq 0 ] && exit 0
+
+# Avviso: pipeline attivata
+notify "OCR Sistema" "Pipeline avviata: elaboro ${#files[@]} documenti…"
 
 # --- Ollama: avvialo SOLO se non gia' attivo (cosi' non disturba altri progetti) ---
 STARTED_OLLAMA=0
@@ -34,8 +42,14 @@ if ! curl -s "$API" >/dev/null 2>&1; then
 fi
 
 echo "===== $(date '+%Y-%m-%d %H:%M:%S') — ${#files[@]} file in inbox =====" >> "$LOG"
-"$ENGINE/.venv/bin/python" "$ENGINE/ocr_processa.py" >> "$LOG" 2>&1
+OUT="$("$ENGINE/.venv/bin/python" "$ENGINE/ocr_processa.py" 2>&1)"
+echo "$OUT" >> "$LOG"
 echo "" >> "$LOG"
+
+# Avviso fine con esito (estrae i contatori dalla riga "Fatto. OK:.. ...")
+RIEPILOGO="$(printf '%s\n' "$OUT" | grep '^Fatto' | head -1 | sed 's/^Fatto\. *//')"
+[ -z "$RIEPILOGO" ] && RIEPILOGO="completato"
+notify "OCR Sistema — fatto" "$RIEPILOGO"
 
 # --- Riporta Ollama a riposo ---
 # scarica il modello dalla RAM (~5GB liberati). keep_alive breve fa comunque

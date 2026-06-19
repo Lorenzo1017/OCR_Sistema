@@ -46,6 +46,12 @@ Se la inbox è vuota non fa nulla.
 
 Niente Terminale, niente comandi. Metti e dimentica.
 
+### Notifiche
+Ricevi una **notifica macOS** quando la pipeline parte ("Pipeline avviata: elaboro
+N documenti…") e una a fine lavoro con l'esito ("OK:.. DaSmistare:.. Errori:..").
+La **prima volta** macOS potrebbe chiedere il permesso: consentilo
+(System Settings → Notifiche). Così sai sempre quando il sistema lavora.
+
 ### Ritrovare un documento
 Naviga `archivio/` col Finder, oppure cerca per parola dal Terminale:
 
