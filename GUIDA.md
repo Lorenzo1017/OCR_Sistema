@@ -35,13 +35,13 @@ Nome file = `ANNO-MESE-GIORNO_Mittente_Tipo_Dettaglio.pdf`. Ordinabile per data,
 
 ## Come si usa — AUTOMATICO
 
-Il sistema lavora **da solo**. Ogni **5 minuti** controlla la cartella `inbox/`:
+Il sistema lavora **da solo**. Ogni **15 minuti** controlla la cartella `inbox/`:
 se trova documenti li processa, rinomina e ordina senza che tu faccia niente.
 Se la inbox è vuota non fa nulla.
 
 ### Il tuo unico compito
 1. Trascina PDF o immagini scansionate dentro **`inbox/`** (quanti vuoi).
-2. Aspetta. Entro 5 minuti spariscono dalla inbox e finiscono ordinati.
+2. Aspetta. Entro 15 minuti spariscono dalla inbox e finiscono ordinati.
 3. Vai a guardare **`archivio/`** (ordinati per tema) e **`_DaSmistare/`** (gli incerti).
 
 Niente Terminale, niente comandi. Metti e dimentica.
@@ -61,7 +61,7 @@ ocr-cerca "enel gas"
 
 ### Forzare subito un giro
 ```bash
-ocr-processa    # processa la inbox ora, senza aspettare i 5 minuti
+ocr-processa    # processa la inbox ora, senza aspettare i 15 minuti
 ```
 
 ### Accendere / spegnere l'automatico
@@ -112,5 +112,5 @@ Salva. Al prossimo `ocr-processa` il sistema userà anche quelle.
 
 - File saltati / errori → guarda `log_errori.csv` (elenco file falliti).
 - Vedere cosa ha fatto l'automatico → apri `log_auto.txt`.
-- Vuoi rifare un file → rimettilo in `inbox/` (entro 5 min riparte).
+- Vuoi rifare un file → rimettilo in `inbox/` (entro 15 min riparte).
 - Dubbi → vedi **CHECKLIST.md** nella stessa cartella.

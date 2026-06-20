@@ -34,7 +34,7 @@ MAX_TENTATIVI = 3   # dopo N fallimenti su uno stesso file -> quarantena
 OLLAMA_MODEL = "qwen2.5:7b"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
-WATCH_INTERVAL = 300   # secondi tra un controllo inbox e il successivo (watcher)
+WATCH_INTERVAL = 900   # secondi tra un controllo inbox e il successivo (15 min)
 # keep_alive breve: il modello (~5GB) si scarica da solo poco dopo l'ultimo
 # uso OCR -> Ollama torna a riposo, RAM liberata.
 OLLAMA_KEEP_ALIVE = "30s"

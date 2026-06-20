@@ -36,7 +36,7 @@ modello e configura l'avvio automatico (LaunchAgent su macOS, systemd su Linux).
 
 ## Come funziona (uguale su tutti gli OS)
 
-- Un **watcher** (`watch.py`) controlla `inbox/` ogni 5 minuti.
+- Un **watcher** (`watch.py`) controlla `inbox/` ogni 15 minuti.
 - Se trova documenti: avvia Ollama, fa OCR, classifica, rinomina, smista in
   `archivio/`, poi **scarica il modello e ferma Ollama** (torna a riposo).
 - Ricevi una **notifica** all'avvio e a fine lavoro (notifica nativa di ogni OS).

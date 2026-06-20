@@ -7,7 +7,7 @@ Stampa mentale prima di processare. Spunta dall'alto in basso.
 ## 🟢 Uso normale (AUTOMATICO)
 
 - [ ] 1. Metto i file (PDF/immagini) nella cartella **`inbox/`**
-- [ ] 2. ...non faccio altro. Entro 5 minuti partono da soli.
+- [ ] 2. ...non faccio altro. Entro 15 minuti partono da soli.
 - [ ] 3. Più tardi controllo **`archivio/`** → file ordinati nelle cartelle
 - [ ] 4. Controllo **`_DaSmistare/`** → sistemo a mano i pochi incerti
 
