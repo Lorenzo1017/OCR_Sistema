@@ -57,11 +57,26 @@ automatico ai nuovi percorsi (non riscarica nulla se già presente). In alternat
 puoi forzare la posizione dei dati con la variabile d'ambiente
 `OCR_SISTEMA_HOME`.
 
-## Requisiti
+## Verifica / diagnostica
+Per controllare **hardware e componenti** in qualsiasi momento:
+```bash
+# macOS/Linux
+ocr-check            # oppure:  _engine/.venv/bin/python _engine/check.py
+# Windows
+_engine\.venv\Scripts\python _engine\check.py
+```
+Mostra RAM/CPU/disco, dice se l'hardware è adeguato, e — se manca un componente —
+stampa il **comando esatto** per installarlo (Tesseract, OCRmyPDF, Ollama, modello).
+Il `setup` esegue questo controllo automaticamente prima di scaricare il modello.
+
+## Requisiti hardware
 - **Python 3.9+**
 - **Tesseract** (con dati lingua *ita*), **OCRmyPDF**, **Ollama** + modello
   `qwen2.5:7b` (~5GB).
-- ~16GB RAM consigliati (il modello usa ~5GB solo durante l'elaborazione).
+- **RAM**: minimo 8GB, **consigliati 16GB** (il modello usa ~5GB solo durante
+  l'elaborazione).
+- **Disco**: almeno 10GB liberi (modello + documenti).
+- **CPU**: 4+ core consigliati.
 
 ## Problemi comuni
 - *"Ambiente non pronto: manca …"* → manca un programma: installalo (vedi sopra).

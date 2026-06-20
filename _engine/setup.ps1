@@ -23,7 +23,16 @@ python -m venv "$Engine\.venv"
 & "$Engine\.venv\Scripts\pip.exe" install --upgrade pip
 & "$Engine\.venv\Scripts\pip.exe" install -r "$Engine\requirements.txt"
 
-# --- 3. Modello LLM ---
+# --- 3. Controllo hardware + dipendenze ---
+Write-Host "==> Controllo hardware e componenti..."
+& "$Engine\.venv\Scripts\python.exe" "$Engine\check.py"
+$risp = Read-Host "Procedo con il download del modello LLM (~5GB)? [s/N]"
+if ($risp -notin @("s","S","y","Y")) {
+  Write-Host "Interrotto. Rilancia quando vuoi questo setup."
+  exit 0
+}
+
+# --- 4. Modello LLM ---
 Write-Host "==> Scarico il modello qwen2.5:7b (~5GB) se manca..."
 try { ollama pull qwen2.5:7b } catch { Write-Warning "Esegui poi: ollama pull qwen2.5:7b" }
 

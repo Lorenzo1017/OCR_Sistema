@@ -28,13 +28,23 @@ python3 -m venv "$ENGINE/.venv"
 "$ENGINE/.venv/bin/pip" -q install --upgrade pip
 "$ENGINE/.venv/bin/pip" -q install -r "$ENGINE/requirements.txt"
 
-# --- 3. Modello LLM ---
+# --- 3. Controllo hardware + dipendenze ---
+echo "==> Controllo hardware e componenti..."
+"$ENGINE/.venv/bin/python" "$ENGINE/check.py" || true
+echo ""
+read -r -p "Procedo con il download del modello LLM (~5GB)? [s/N] " RISP
+case "$RISP" in
+  s|S|y|Y) ;;
+  *) echo "Interrotto. Rilancia quando vuoi: bash _engine/setup.sh"; exit 0 ;;
+esac
+
+# --- 4. Modello LLM ---
 echo "==> Scarico il modello qwen2.5:7b (~5GB) se manca..."
 ollama serve >/dev/null 2>&1 &
 sleep 3
 ollama pull qwen2.5:7b || true
 
-# --- 4. Avvio automatico al login ---
+# --- 5. Avvio automatico al login ---
 PY="$ENGINE/.venv/bin/python"
 if [ "$OS" = "Darwin" ]; then
   PLIST="$HOME/Library/LaunchAgents/com.ocrsistema.watch.plist"
@@ -73,7 +83,7 @@ EOF
   echo "==> Avvio automatico installato (systemd user)."
 fi
 
-# --- 5. Alias comodi (zsh/bash) ---
+# --- 6. Alias comodi (zsh/bash) ---
 RC="$HOME/.zshrc"; [ -n "${BASH_VERSION:-}" ] && RC="$HOME/.bashrc"
 if ! grep -q "alias ocr-processa" "$RC" 2>/dev/null; then
   cat >> "$RC" <<EOF
@@ -81,6 +91,7 @@ if ! grep -q "alias ocr-processa" "$RC" 2>/dev/null; then
 # OCR_Sistema
 alias ocr-processa='"$PY" "$ENGINE/ocr_processa.py"'
 alias ocr-cerca='"$PY" "$ENGINE/ocr_cerca.py"'
+alias ocr-check='"$PY" "$ENGINE/check.py"'
 EOF
 fi
 
