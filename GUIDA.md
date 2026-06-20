@@ -59,14 +59,19 @@ Naviga `archivio/` col Finder, oppure cerca per parola dal Terminale:
 ocr-cerca "enel gas"
 ```
 
-### Accendere / spegnere l'automatico
+### Forzare subito un giro
 ```bash
-ocr-auto-off    # ferma il controllo automatico
-ocr-auto-on     # lo riattiva
-ocr-processa    # forza subito un giro, senza aspettare i 5 minuti
+ocr-processa    # processa la inbox ora, senza aspettare i 5 minuti
 ```
 
-L'automatico riparte da solo a ogni accensione del Mac.
+### Accendere / spegnere l'automatico
+- **macOS:** `launchctl unload ~/Library/LaunchAgents/com.ocrsistema.watch.plist`
+  (e `load` per riattivare).
+- **Linux:** `systemctl --user stop ocrsistema` (e `start`).
+- **Windows:** disabilita/abilita il task "OCR_Sistema" in Utilità di pianificazione.
+
+L'automatico riparte da solo a ogni accensione del computer.
+Per usarlo su **altri sistemi operativi** vedi `README_PORTABILITA.md`.
 
 ---
 

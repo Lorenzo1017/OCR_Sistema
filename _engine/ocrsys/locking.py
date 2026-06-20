@@ -1,5 +1,5 @@
-import fcntl
 from pathlib import Path
+from filelock import FileLock, Timeout
 
 
 class AlreadyRunning(Exception):
@@ -7,28 +7,21 @@ class AlreadyRunning(Exception):
 
 
 class SingleInstanceLock:
-    """Lock esclusivo via fcntl.flock. Si rilascia da solo alla morte del
-    processo (niente lock stantii). Usato sia da ocr_processa (manuale) sia
-    dal watcher automatico -> mutua esclusione su un unico file."""
+    """Lock esclusivo cross-platform (Windows/Linux/macOS) via 'filelock'.
+    Si rilascia all'uscita dal contesto. Usato sia dall'avvio manuale sia dal
+    watcher -> mutua esclusione su un unico file."""
 
     def __init__(self, path: Path):
-        self.path = Path(path)
-        self._fd = None
+        # filelock gestisce da solo il file di lock; timeout=0 = non bloccante
+        self._lock = FileLock(str(path), timeout=0)
 
     def __enter__(self):
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._fd = open(self.path, "w")
         try:
-            fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            self._fd.close()
-            self._fd = None
-            raise AlreadyRunning(str(self.path))
+            self._lock.acquire()
+        except Timeout:
+            raise AlreadyRunning(str(self._lock.lock_file))
         return self
 
     def __exit__(self, *exc):
-        if self._fd is not None:
-            fcntl.flock(self._fd, fcntl.LOCK_UN)
-            self._fd.close()
-            self._fd = None
+        self._lock.release()
         return False

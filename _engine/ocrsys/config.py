@@ -1,6 +1,19 @@
+import os
 from pathlib import Path
 
-BASE = Path.home() / "OCR_Sistema"
+# BASE = cartella dell'applicazione (questo file e' in _engine/ocrsys/config.py,
+# quindi parents[2] = la radice OCR_Sistema). Relativo al codice -> la cartella
+# si puo' SPOSTARE/COPIARE ovunque (anche su Windows/Linux) senza modifiche.
+# Override opzionale con la variabile d'ambiente OCR_SISTEMA_HOME.
+BASE = Path(os.environ.get("OCR_SISTEMA_HOME",
+                           Path(__file__).resolve().parents[2]))
+
+# Aggiunge le dir bin comuni al PATH: gli scheduler (launchd/systemd/Task
+# Scheduler) partono con PATH minimo e non troverebbero tesseract/ollama.
+# Su Windows queste dir non esistono -> innocuo, i tool sono nel PATH di sistema.
+for _p in ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"):
+    if _p not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = os.environ.get("PATH", "") + os.pathsep + _p
 
 INBOX = BASE / "inbox"
 ARCHIVIO = BASE / "archivio"
@@ -20,6 +33,8 @@ MAX_TENTATIVI = 3   # dopo N fallimenti su uno stesso file -> quarantena
 
 OLLAMA_MODEL = "qwen2.5:7b"
 OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
+WATCH_INTERVAL = 300   # secondi tra un controllo inbox e il successivo (watcher)
 # keep_alive breve: il modello (~5GB) si scarica da solo poco dopo l'ultimo
 # uso OCR -> Ollama torna a riposo, RAM liberata.
 OLLAMA_KEEP_ALIVE = "30s"
