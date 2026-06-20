@@ -1,11 +1,13 @@
 import subprocess
 from pathlib import Path
 from pypdf import PdfReader
+from . import config
 from .config import OCR_MIN_TEXT
 
-# Flag comuni: lingua italiana, raddrizza scansioni storte, ruota pagine
-# capovolte. Migliora l'OCR su scansioni reali disordinate.
-_COMMON = ["-l", "ita", "--deskew", "--rotate-pages", "--image-dpi", "300"]
+# Flag comuni: lingua/e configurabile/i (impostazioni.yaml -> ocr_lingue),
+# raddrizza scansioni storte, ruota pagine capovolte.
+_COMMON = ["-l", config.OCR_LINGUE, "--deskew", "--rotate-pages",
+           "--image-dpi", "300"]
 
 
 def _run(src: Path, out_pdf: Path, mode: str) -> None:

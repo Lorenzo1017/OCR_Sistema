@@ -11,7 +11,7 @@ classificalo. Rispondi SOLO con un oggetto JSON, senza altro testo.
 
 Categorie ammesse (scegli ESATTAMENTE una di queste stringhe, niente altro):
 {categorie}
-
+{mittenti}
 Schema richiesto:
 {{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","confidenza":"alta|media|bassa"}}
 
@@ -137,9 +137,19 @@ def _call_ollama(prompt: str) -> str:
     raise last
 
 
-def classify(text: str, taxonomy: Taxonomy) -> dict:
+def _build_prompt(text: str, taxonomy: Taxonomy, mittenti_noti=None) -> str:
     categorie = "\n".join(sorted(taxonomy.valid_paths()))
-    prompt = _PROMPT.format(categorie=categorie, testo=text[:4000])
+    if mittenti_noti:
+        elenco = ", ".join(mittenti_noti[:50])
+        mittenti = ("\nMittenti gia' visti (se il documento e' di uno di questi, "
+                    "riusa la STESSA grafia esatta): " + elenco + "\n")
+    else:
+        mittenti = ""
+    return _PROMPT.format(categorie=categorie, mittenti=mittenti, testo=text[:4000])
+
+
+def classify(text: str, taxonomy: Taxonomy, mittenti_noti=None) -> dict:
+    prompt = _build_prompt(text, taxonomy, mittenti_noti)
     raw = _call_ollama(prompt)
     r = parse_response(raw, taxonomy)
     # guardia utenze: usa testo OCR + dettaglio/tipo del modello come evidenza.

@@ -39,15 +39,61 @@ def _log_rinomina(base: Path, originale: str, nuovo: str):
         w.writerow([originale, nuovo])
 
 
-def process_file(src: Path, ctx: Context) -> str:
-    """Processa un singolo file. Ritorna 'ok' | 'skip' | 'dasmistare'."""
+def _classify_doc(src, ctx, tmp_pdf, conferma):
+    """OCR + classificazione + data normalizzata (+ eventuale conferma utente).
+    Ritorna (text, n_pagine, meta, data)."""
+    text, n_pagine = ctx.extract_text(tmp_pdf)
+    try:
+        mittenti = ctx.db.known_senders()
+    except Exception:
+        mittenti = None
+    meta = ctx.classify(text, ctx.taxonomy, mittenti)
+    # Qwen puo' restituire data in formati vari (15/03/2024): normalizza sempre
+    # in AAAA-MM-GG, con fallback all'estrazione dal testo.
+    data = normalize_date(meta.get("data")) or extract_date(text)
+    if conferma is not None:
+        meta, data = conferma(src.name, meta, data)
+    return text, n_pagine, meta, data
+
+
+def _destinazione(ctx, meta, data):
+    """Ritorna (dest_dir, name, status) in base alla validità della classifica."""
+    if meta.get("valido") and ctx.taxonomy.is_valid(meta["categoria"]):
+        dest_dir = ctx.base / "archivio" / meta["categoria"]
+        name = build_name(data, meta["mittente"], meta["tipo"], meta["dettaglio"])
+        status = "ok"
+    else:
+        dest_dir = ctx.base / "_DaSmistare"
+        name = build_name(None, meta.get("mittente", ""),
+                          meta.get("tipo", "documento"), meta.get("dettaglio", ""))
+        status = "dasmistare"
+    return dest_dir, name, status
+
+
+def plan_file(src: Path, ctx: Context, conferma=None) -> dict:
+    """DRY-RUN: calcola dove finirebbe il file SENZA toccare nulla (no backup,
+    no move, no db, no log). Ritorna {'status', 'dest'} (dest relativo a base)."""
+    sha = _sha256(src)
+    if ctx.db.already_processed(sha):
+        return {"status": "skip", "dest": None}
+    with tempfile.TemporaryDirectory() as td:
+        tmp_pdf = Path(td) / "ocr.pdf"
+        ctx.ocr_to_pdf(src, tmp_pdf)
+        _, _, meta, data = _classify_doc(src, ctx, tmp_pdf, conferma)
+        dest_dir, name, status = _destinazione(ctx, meta, data)
+        name = resolve_collision(dest_dir, name)
+        return {"status": status, "dest": str((dest_dir / name).relative_to(ctx.base))}
+
+
+def process_file(src: Path, ctx: Context, conferma=None) -> str:
+    """Processa un singolo file. Ritorna 'ok' | 'skip' | 'dasmistare'.
+    `conferma(nome, meta, data) -> (meta, data)` permette correzione interattiva."""
     sha = _sha256(src)
     if ctx.db.already_processed(sha):
         return "skip"
 
     # backup univoco per contenuto: prefisso sha evita che due scansioni
-    # diverse con lo STESSO nome (es. IMG_0001.pdf) si sovrascrivano e
-    # perdano l'originale. Stesso contenuto -> stesso nome -> non duplica.
+    # diverse con lo STESSO nome (es. IMG_0001.pdf) si sovrascrivano.
     backup = ctx.base / "originali" / f"{sha[:10]}_{src.name}"
     if not backup.exists():
         shutil.copy2(src, backup)
@@ -55,28 +101,12 @@ def process_file(src: Path, ctx: Context) -> str:
     with tempfile.TemporaryDirectory() as td:
         tmp_pdf = Path(td) / "ocr.pdf"
         ctx.ocr_to_pdf(src, tmp_pdf)
-        text, n_pagine = ctx.extract_text(tmp_pdf)
+        text, n_pagine, meta, data = _classify_doc(src, ctx, tmp_pdf, conferma)
 
         (ctx.base / "text" / f"{sha[:10]}_{src.stem}.txt").write_text(
             text, encoding="utf-8", errors="replace")
 
-        meta = ctx.classify(text, ctx.taxonomy)
-        # Qwen puo' restituire data in formati vari (15/03/2024): normalizza
-        # sempre in AAAA-MM-GG, con fallback all'estrazione dal testo.
-        data = normalize_date(meta.get("data")) or extract_date(text)
-
-        if meta.get("valido") and ctx.taxonomy.is_valid(meta["categoria"]):
-            dest_dir = ctx.base / "archivio" / meta["categoria"]
-            name = build_name(data, meta["mittente"], meta["tipo"],
-                              meta["dettaglio"])
-            status = "ok"
-        else:
-            dest_dir = ctx.base / "_DaSmistare"
-            name = build_name(None, meta.get("mittente", ""),
-                              meta.get("tipo", "documento"),
-                              meta.get("dettaglio", ""))
-            status = "dasmistare"
-
+        dest_dir, name, status = _destinazione(ctx, meta, data)
         dest_dir.mkdir(parents=True, exist_ok=True)
         name = resolve_collision(dest_dir, name)
         shutil.move(str(tmp_pdf), str(dest_dir / name))

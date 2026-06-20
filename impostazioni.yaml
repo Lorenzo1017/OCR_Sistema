@@ -1,0 +1,4 @@
+# Impostazioni opzionali di OCR_Sistema.
+# Lingue OCR per Tesseract: "ita", oppure "ita+eng" per documenti misti.
+# Richiede i language pack installati (es. tesseract-lang via Homebrew).
+ocr_lingue: ita

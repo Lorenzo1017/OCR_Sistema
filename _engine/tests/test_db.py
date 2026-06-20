@@ -43,6 +43,17 @@ def test_insert_ritorna_false_su_duplicato(tmp_path):
     assert db.insert(make_doc()) is True
     assert db.insert(make_doc()) is False   # stesso sha -> ignorato
 
+def test_known_senders(tmp_path):
+    db = Database(tmp_path / "index.db")
+    db.insert(make_doc(sha256="a", mittente="Enel"))
+    db.insert(make_doc(sha256="b", mittente="Enel"))
+    db.insert(make_doc(sha256="c", mittente="Vodafone"))
+    db.insert(make_doc(sha256="d", mittente=""))
+    s = db.known_senders()
+    assert s[0] == "Enel"          # più frequente prima
+    assert "Vodafone" in s
+    assert "" not in s             # vuoti esclusi
+
 def test_record_error_increments(tmp_path):
     db = Database(tmp_path / "index.db")
     assert db.record_error("sha9", "scan.pdf", "boom") == 1

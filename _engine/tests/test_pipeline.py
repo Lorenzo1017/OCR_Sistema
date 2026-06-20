@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from ocrsys.pipeline import process_file, Context
+from ocrsys.pipeline import process_file, plan_file, Context
 from ocrsys.taxonomy import Taxonomy
 from ocrsys.db import Database
 
@@ -18,8 +18,8 @@ def make_ctx(tmp_path, classify_result, text="Enel gas 15/03/2024"):
     def fake_extract(pdf):
         return text, 1
 
-    def fake_classify(t, taxonomy):
-        return classify_result
+    def fake_classify(t, taxonomy, mittenti_noti=None):
+        return dict(classify_result)
 
     return Context(
         base=base, taxonomy=tax, db=db,
@@ -59,6 +59,38 @@ def test_invalid_doc_routed_to_dasmistare(tmp_path):
     process_file(src, ctx)
     files = list((tmp_path / "_DaSmistare").glob("0000-00-00_*.pdf"))
     assert len(files) == 1
+
+def test_dry_run_non_tocca_nulla(tmp_path):
+    # plan_file calcola la destinazione SENZA spostare/scrivere/indicizzare
+    src = tmp_path / "scan.pdf"; src.write_text("x")
+    ctx = make_ctx(tmp_path, {
+        "valido": True, "data": "2024-03-15", "mittente": "Enel",
+        "tipo": "bolletta", "dettaglio": "gas",
+        "categoria": "Casa/Utenze/Gas", "confidenza": "alta",
+    })
+    r = plan_file(src, ctx)
+    assert r["status"] == "ok"
+    assert r["dest"] == "archivio/Casa/Utenze/Gas/2024-03-15_Enel_bolletta_gas.pdf"
+    # niente effetti collaterali
+    assert list((tmp_path / "archivio").rglob("*.pdf")) == []
+    assert list((tmp_path / "originali").iterdir()) == []
+    assert ctx.db.search("gas") == []
+    assert src.exists()
+
+def test_conferma_puo_mandare_in_dasmistare(tmp_path):
+    # un doc valido, ma la conferma lo dirotta in _DaSmistare
+    src = tmp_path / "scan.pdf"; src.write_text("x")
+    ctx = make_ctx(tmp_path, {
+        "valido": True, "data": "2024-03-15", "mittente": "Enel",
+        "tipo": "bolletta", "dettaglio": "gas",
+        "categoria": "Casa/Utenze/Gas", "confidenza": "alta",
+    })
+    def conferma(nome, meta, data):
+        meta["valido"] = False
+        return meta, data
+    status = process_file(src, ctx, conferma)
+    assert status == "dasmistare"
+    assert list((tmp_path / "_DaSmistare").glob("0000-00-00_*.pdf"))
 
 def test_idempotent_skips_already_processed(tmp_path):
     src = tmp_path / "scan.pdf"; src.write_text("x")

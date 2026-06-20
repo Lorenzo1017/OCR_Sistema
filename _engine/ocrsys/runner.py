@@ -4,9 +4,10 @@ import shutil
 from pathlib import Path
 
 from . import config, preflight, ollama_mgr
+from .dates import normalize_date
 from .locking import SingleInstanceLock, AlreadyRunning
 from .notify import notify
-from .pipeline import build_default_context, process_file
+from .pipeline import build_default_context, process_file, plan_file
 
 
 def _sha256(p: Path) -> str:
@@ -36,13 +37,63 @@ def _quarantena(f: Path):
     shutil.move(str(f), str(dest))
 
 
-def _process_all(ctx, files, stampa=True) -> str:
+def _conferma_interattiva(nome, meta, data):
+    """Mostra la classificazione proposta e chiede conferma/modifica via stdin."""
+    print(f"\n--- {nome} ---")
+    print(f"  data:      {data or '—'}")
+    print(f"  mittente:  {meta.get('mittente','')}")
+    print(f"  tipo:      {meta.get('tipo','')}")
+    print(f"  dettaglio: {meta.get('dettaglio','')}")
+    print(f"  categoria: {meta.get('categoria','') or '(incerto)'}"
+          f"{'' if meta.get('valido') else '   [incerto -> _DaSmistare]'}")
+    scelta = input("  [Invio]=accetta  [e]=modifica  [s]=_DaSmistare : ").strip().lower()
+    meta = dict(meta)
+    if scelta == "s":
+        meta["valido"] = False
+        return meta, data
+    if scelta == "e":
+        def chiedi(campo, attuale):
+            v = input(f"    {campo} [{attuale}]: ").strip()
+            return v if v else attuale
+        meta["mittente"] = chiedi("mittente", meta.get("mittente", ""))
+        meta["tipo"] = chiedi("tipo", meta.get("tipo", ""))
+        meta["dettaglio"] = chiedi("dettaglio", meta.get("dettaglio", ""))
+        nd = input(f"    data AAAA-MM-GG [{data or ''}]: ").strip()
+        if nd:
+            data = normalize_date(nd) or data
+        meta["categoria"] = chiedi("categoria", meta.get("categoria", ""))
+        meta["valido"] = True   # se la categoria non e' valida, finira' comunque in _DaSmistare
+        return meta, data
+    return meta, data   # Invio = accetta com'è
+
+
+def _plan_all(ctx, files, conferma=None) -> str:
+    """DRY-RUN: mostra cosa farebbe senza toccare nulla."""
+    ok = skip = dasmistare = errori = 0
+    for i, f in enumerate(files, 1):
+        try:
+            r = plan_file(f, ctx, conferma)
+            if r["status"] == "skip":
+                skip += 1
+                print(f"[{i}/{len(files)}] {f.name}  ->  (gia' processato)")
+            else:
+                ok += (r["status"] == "ok")
+                dasmistare += (r["status"] == "dasmistare")
+                print(f"[{i}/{len(files)}] {f.name}\n        ->  {r['dest']}")
+        except Exception as e:
+            errori += 1
+            print(f"[{i}/{len(files)}] {f.name}  ->  ERRORE: {e}")
+    return (f"(DRY-RUN, nessun file toccato) OK:{ok}  DaSmistare:{dasmistare}  "
+            f"Saltati:{skip}  Errori:{errori}")
+
+
+def _process_all(ctx, files, stampa=True, conferma=None) -> str:
     ok = skip = dasmistare = errori = 0
     for i, f in enumerate(files, 1):
         if stampa:
             print(f"[{i}/{len(files)}] {f.name} ... ", end="", flush=True)
         try:
-            status = process_file(f, ctx)
+            status = process_file(f, ctx, conferma)
             if status == "ok":
                 ok += 1; _say(stampa, "OK")
             elif status == "skip":
@@ -72,10 +123,12 @@ def _say(stampa, msg):
         print(msg)
 
 
-def run_once(stampa=True, notifiche=True) -> str:
+def run_once(stampa=True, notifiche=True, dry_run=False, interattivo=False) -> str:
     """Un giro completo: preflight -> lock -> (se inbox non vuota) avvia Ollama,
     notifica, processa, scarica modello, notifica esito. Ritorna un riepilogo.
-    Sicuro da chiamare ripetutamente (idempotente, lock unico)."""
+    Sicuro da chiamare ripetutamente (idempotente, lock unico).
+    dry_run: mostra solo cosa farebbe. interattivo: chiede conferma per file."""
+    conferma = _conferma_interattiva if interattivo else None
     problemi = preflight.check()
     if problemi:
         msg = "Ambiente non pronto: " + " | ".join(problemi)
@@ -96,15 +149,17 @@ def run_once(stampa=True, notifiche=True) -> str:
                     print("Inbox vuota. Metti i documenti in:", config.INBOX)
                 return "inbox vuota"
 
-            if notifiche:
+            if notifiche and not dry_run:
                 notify("OCR Sistema",
                        f"Pipeline avviata: elaboro {len(files)} documenti…")
             if stampa:
-                print(f"Trovati {len(files)} documenti. Inizio...\n")
+                modo = " (DRY-RUN)" if dry_run else ""
+                print(f"Trovati {len(files)} documenti{modo}. Inizio...\n")
 
             proc = ollama_mgr.ensure()
-            # se Ollama non e' salito, NON processare: i file finirebbero tutti
-            # in errore e poi in quarantena pur essendo validi.
+            # serve l'OCR+classificazione anche in dry-run, quindi Ollama deve
+            # essere su; se non sale, NON processare (file validi finirebbero
+            # in quarantena).
             if not ollama_mgr.is_up():
                 ollama_mgr.stop_server(proc)
                 msg = "Ollama non disponibile: riprovo al prossimo giro."
@@ -116,7 +171,11 @@ def run_once(stampa=True, notifiche=True) -> str:
 
             ctx = build_default_context()
             try:
-                riepilogo = _process_all(ctx, files, stampa=stampa)
+                if dry_run:
+                    riepilogo = _plan_all(ctx, files, conferma=conferma)
+                else:
+                    riepilogo = _process_all(ctx, files, stampa=stampa,
+                                             conferma=conferma)
             finally:
                 ctx.db.close()                # chiude la connessione SQLite
                 ollama_mgr.stop_model()       # libera RAM modello
@@ -124,7 +183,7 @@ def run_once(stampa=True, notifiche=True) -> str:
 
             if stampa:
                 print(f"\nFatto. {riepilogo}")
-            if notifiche:
+            if notifiche and not dry_run:
                 notify("OCR Sistema — fatto", riepilogo)
             return riepilogo
 

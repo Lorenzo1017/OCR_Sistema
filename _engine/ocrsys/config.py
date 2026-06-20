@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+import yaml
+
 # BASE = cartella dell'applicazione (questo file e' in _engine/ocrsys/config.py,
 # quindi parents[2] = la radice OCR_Sistema). Relativo al codice -> la cartella
 # si puo' SPOSTARE/COPIARE ovunque (anche su Windows/Linux) senza modifiche.
@@ -55,3 +57,23 @@ OLLAMA_KEEP_ALIVE = "30s"
 OCR_MIN_TEXT = 20
 
 INPUT_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif"}
+
+# Impostazioni opzionali editabili dall'utente (impostazioni.yaml).
+IMPOSTAZIONI_YAML = BASE / "impostazioni.yaml"
+
+
+def leggi_impostazioni(path) -> dict:
+    """Legge impostazioni.yaml se presente; dict vuoto se manca/è invalido."""
+    try:
+        p = Path(path)
+        if p.exists():
+            data = yaml.safe_load(p.read_text())
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        pass
+    return {}
+
+
+# Lingue OCR per Tesseract (es. "ita", "ita+eng"). Richiede i language pack
+# installati. Override in impostazioni.yaml -> ocr_lingue.
+OCR_LINGUE = str(leggi_impostazioni(IMPOSTAZIONI_YAML).get("ocr_lingue", "ita"))

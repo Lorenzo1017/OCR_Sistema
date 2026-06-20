@@ -75,6 +75,17 @@ class Database:
         sintassi -> niente 'fts5: syntax error')."""
         return " ".join('"' + t.replace('"', '""') + '"' for t in query.split())
 
+    def known_senders(self, limit: int = 300) -> list:
+        """Mittenti gia' archiviati, dal piu' frequente. Passati al prompt LLM
+        per riusare la grafia esatta ('Enel') invece di inventarne varianti."""
+        cur = self.conn.execute(
+            "SELECT mittente FROM documenti "
+            "WHERE mittente IS NOT NULL AND TRIM(mittente) <> '' "
+            "GROUP BY mittente ORDER BY COUNT(*) DESC LIMIT ?",
+            (limit,),
+        )
+        return [r[0] for r in cur.fetchall()]
+
     def search(self, query: str) -> list:
         match = self._fts_query(query)
         if not match:

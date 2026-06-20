@@ -1,7 +1,17 @@
-from ocrsys.classify import parse_response, valuta_utenza
+from ocrsys.classify import parse_response, valuta_utenza, _build_prompt
 from ocrsys.taxonomy import Taxonomy
 
 TAX = Taxonomy({"Casa/Utenze/Gas", "Salute/Referti"})
+
+def test_build_prompt_include_mittenti_noti():
+    p = _build_prompt("testo", TAX, ["Enel", "Vodafone"])
+    assert "Enel" in p and "Vodafone" in p
+    assert "Mittenti gia' visti" in p
+
+def test_build_prompt_senza_mittenti():
+    p = _build_prompt("testo", TAX, None)
+    assert "Mittenti gia' visti" not in p
+    assert "Casa/Utenze/Gas" in p   # categorie sempre presenti
 
 def test_valuta_utenza_autocorregge_acqua_da_luce():
     # bolletta acqua (con 1 riga boilerplate "energia elettrica") messa in Luce

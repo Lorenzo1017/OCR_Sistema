@@ -61,8 +61,14 @@ ocr-cerca "enel gas"
 
 ### Forcing an immediate run
 ```bash
-ocr-processa    # process the inbox now, without waiting the 15 minutes
+ocr-processa                # process the inbox now, without waiting the 15 minutes
+ocr-processa --dry-run      # preview what it WOULD do, without moving/renaming anything
+ocr-processa --interactive  # confirm/edit each document before filing it
 ```
+
+### Settings (optional)
+Edit `impostazioni.yaml` to change OCR languages, e.g. `ocr_lingue: ita+eng` for
+mixed Italian/English documents (requires the Tesseract language packs installed).
 
 ### Turning the automatic mode on / off
 - **macOS:** `launchctl unload ~/Library/LaunchAgents/com.ocrsistema.watch.plist`
