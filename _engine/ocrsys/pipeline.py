@@ -117,6 +117,7 @@ def process_file(src: Path, ctx: Context, conferma=None) -> str:
         "categoria": meta.get("categoria", "_DaSmistare"),
         "data_documento": data or "0000-00-00",
         "mittente": meta.get("mittente", ""), "tipo": meta.get("tipo", ""),
+        "tags": " ".join(meta.get("tags") or []),
         "testo_completo": text, "n_pagine": n_pagine,
         "confidenza": meta.get("confidenza", "bassa"), "sha256": sha,
     })

@@ -43,6 +43,37 @@ def test_insert_ritorna_false_su_duplicato(tmp_path):
     assert db.insert(make_doc()) is True
     assert db.insert(make_doc()) is False   # stesso sha -> ignorato
 
+def test_migrazione_db_vecchio_senza_tags(tmp_path):
+    import sqlite3
+    p = tmp_path / "old.db"
+    c = sqlite3.connect(str(p))
+    c.executescript("""
+      CREATE TABLE documenti (id INTEGER PRIMARY KEY, nome_file TEXT, percorso TEXT,
+        categoria TEXT, data_documento TEXT, mittente TEXT, tipo TEXT,
+        testo_completo TEXT, n_pagine INTEGER, confidenza TEXT, sha256 TEXT UNIQUE,
+        data_processato TEXT);
+      CREATE VIRTUAL TABLE documenti_fts USING fts5(mittente,tipo,testo_completo,
+        content='documenti', content_rowid='id');
+      CREATE TRIGGER doc_ai AFTER INSERT ON documenti BEGIN
+        INSERT INTO documenti_fts(rowid,mittente,tipo,testo_completo)
+        VALUES(new.id,new.mittente,new.tipo,new.testo_completo); END;
+    """)
+    c.execute("INSERT INTO documenti (mittente,tipo,testo_completo,sha256) "
+              "VALUES ('Enel','bolletta','consumo gas','x')")
+    c.commit(); c.close()
+    db = Database(p)                       # apre -> migra
+    db.insert(make_doc(sha256="y", mittente="Vodafone",
+                       testo_completo="fattura vodafone internet", tags="rimborso"))
+    assert len(db.search("rimborso")) == 1   # nuovo tag cercabile
+    assert len(db.search("Enel")) == 1       # vecchio doc ancora cercabile (migrato)
+
+def test_search_by_tag(tmp_path):
+    db = Database(tmp_path / "index.db")
+    db.insert(make_doc(sha256="t1", tags="rimborso enel 2024"))
+    res = db.search("rimborso")     # parola che sta nei tag, non nel testo
+    assert len(res) == 1
+    assert res[0]["tags"] == "rimborso enel 2024"
+
 def test_known_senders(tmp_path):
     db = Database(tmp_path / "index.db")
     db.insert(make_doc(sha256="a", mittente="Enel"))

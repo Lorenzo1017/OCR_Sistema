@@ -1,4 +1,18 @@
-from ocrsys.classify import parse_response, valuta_utenza, _build_prompt
+from ocrsys.classify import parse_response, valuta_utenza, _build_prompt, _norm_tags
+
+def test_norm_tags():
+    assert _norm_tags(["Enel", "GAS", "gas", "", "  2024 "]) == ["enel", "gas", "2024"]
+    assert _norm_tags(None) == []
+    assert _norm_tags("non lista") == []
+    assert len(_norm_tags([str(i) for i in range(20)])) == 8   # cap
+
+def test_parse_estrae_tags():
+    raw = '{"data":"2024-03-15","mittente":"Enel","tipo":"bolletta",' \
+          '"dettaglio":"gas","categoria":"Casa/Utenze/Gas",' \
+          '"tags":["enel","gas"],"confidenza":"alta"}'
+    r = parse_response(raw, TAX)
+    assert r["tags"] == ["enel", "gas"]
+    assert r["valido"] is True
 from ocrsys.taxonomy import Taxonomy
 
 TAX = Taxonomy({"Casa/Utenze/Gas", "Salute/Referti"})

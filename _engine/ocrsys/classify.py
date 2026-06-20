@@ -13,9 +13,10 @@ Categorie ammesse (scegli ESATTAMENTE una di queste stringhe, niente altro):
 {categorie}
 {mittenti}
 Schema richiesto:
-{{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","confidenza":"alta|media|bassa"}}
+{{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","tags":["...","..."],"confidenza":"alta|media|bassa"}}
 
 Regole:
+- "tags" = 2-5 parole chiave brevi minuscole (mittente, anno, tema, es. ["enel","gas","2024"]). Servono per la ricerca.
 - Ragiona prima sul MITTENTE e sul TIPO di documento, poi scegli la categoria piu' coerente.
 - "data" = data di emissione del documento (formato AAAA-MM-GG). Se non sicura, usa "".
 - "mittente" = chi emette (es. Enel, Agenzia delle Entrate, Vodafone). Breve.
@@ -67,9 +68,22 @@ def parse_response(raw: str, taxonomy: Taxonomy) -> dict:
         "tipo": data.get("tipo", ""),
         "dettaglio": data.get("dettaglio", ""),
         "categoria": cat,
+        "tags": _norm_tags(data.get("tags")),
         "confidenza": conf,
         "valido": bool(valido),
     }
+
+
+def _norm_tags(tags) -> list:
+    """Normalizza i tag: minuscole, senza vuoti/duplicati, max 8."""
+    if not isinstance(tags, list):
+        return []
+    out = []
+    for t in tags:
+        s = str(t).strip().lower()
+        if s and s not in out:
+            out.append(s)
+    return out[:8]
 
 
 # Pattern per disambiguare i sotto-tipi di utenza (errore comune del 7B: bolletta

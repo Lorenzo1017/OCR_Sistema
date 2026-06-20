@@ -21,6 +21,9 @@ def main():
     for r in results:
         print(f"  {r['data_documento']}  [{r['categoria']}]")
         print(f"     {r['nome_file']}")
+        tags = (r['tags'] or "").strip() if 'tags' in r.keys() else ""
+        if tags:
+            print(f"     tag: {tags}")
         print(f"     {config.BASE / r['percorso']}\n")
 
 

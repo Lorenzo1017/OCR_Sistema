@@ -5,16 +5,16 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS documenti (
     id INTEGER PRIMARY KEY,
     nome_file TEXT, percorso TEXT, categoria TEXT,
-    data_documento TEXT, mittente TEXT, tipo TEXT,
+    data_documento TEXT, mittente TEXT, tipo TEXT, tags TEXT DEFAULT '',
     testo_completo TEXT, n_pagine INTEGER, confidenza TEXT,
     sha256 TEXT UNIQUE, data_processato TEXT DEFAULT (datetime('now'))
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS documenti_fts USING fts5(
-    mittente, tipo, testo_completo, content='documenti', content_rowid='id'
+    mittente, tipo, tags, testo_completo, content='documenti', content_rowid='id'
 );
 CREATE TRIGGER IF NOT EXISTS doc_ai AFTER INSERT ON documenti BEGIN
-    INSERT INTO documenti_fts(rowid, mittente, tipo, testo_completo)
-    VALUES (new.id, new.mittente, new.tipo, new.testo_completo);
+    INSERT INTO documenti_fts(rowid, mittente, tipo, tags, testo_completo)
+    VALUES (new.id, new.mittente, new.tipo, new.tags, new.testo_completo);
 END;
 CREATE TABLE IF NOT EXISTS errori (
     sha256 TEXT PRIMARY KEY,
@@ -30,7 +30,31 @@ class Database:
         self.conn = sqlite3.connect(str(path))
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(_SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self):
+        """Aggiorna DB creati da versioni precedenti: aggiunge la colonna tags
+        e la include nell'indice FTS5 (ricostruendolo)."""
+        cols = [r[1] for r in self.conn.execute("PRAGMA table_info(documenti)")]
+        if "tags" not in cols:
+            self.conn.execute("ALTER TABLE documenti ADD COLUMN tags TEXT DEFAULT ''")
+        fts_cols = [r[1] for r in self.conn.execute("PRAGMA table_info(documenti_fts)")]
+        if "tags" not in fts_cols:
+            self.conn.executescript("""
+                DROP TRIGGER IF EXISTS doc_ai;
+                DROP TABLE IF EXISTS documenti_fts;
+                CREATE VIRTUAL TABLE documenti_fts USING fts5(
+                    mittente, tipo, tags, testo_completo,
+                    content='documenti', content_rowid='id');
+                INSERT INTO documenti_fts(rowid, mittente, tipo, tags, testo_completo)
+                    SELECT id, mittente, tipo, COALESCE(tags,''), testo_completo
+                    FROM documenti;
+                CREATE TRIGGER doc_ai AFTER INSERT ON documenti BEGIN
+                    INSERT INTO documenti_fts(rowid, mittente, tipo, tags, testo_completo)
+                    VALUES (new.id, new.mittente, new.tipo, new.tags, new.testo_completo);
+                END;
+            """)
 
     def already_processed(self, sha256: str) -> bool:
         cur = self.conn.execute(
@@ -41,13 +65,13 @@ class Database:
     def insert(self, doc: dict) -> bool:
         """Ritorna True se inserito, False se gia' presente (sha duplicato)."""
         cols = ["nome_file", "percorso", "categoria", "data_documento",
-                "mittente", "tipo", "testo_completo", "n_pagine",
+                "mittente", "tipo", "tags", "testo_completo", "n_pagine",
                 "confidenza", "sha256"]
         placeholders = ", ".join("?" for _ in cols)
         cur = self.conn.execute(
             f"INSERT OR IGNORE INTO documenti ({', '.join(cols)}) "
             f"VALUES ({placeholders})",
-            tuple(doc[c] for c in cols),
+            tuple(doc.get(c, "") for c in cols),
         )
         self.conn.commit()
         return cur.rowcount > 0
