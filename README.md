@@ -5,6 +5,8 @@
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
 ![OS](https://img.shields.io/badge/OS-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)
 
+<p align="center"><img src="docs/flow.svg" alt="OCR_Sistema pipeline" width="100%"></p>
+
 > 🇬🇧 **EN** — Automatic filing of scanned documents, **100% local and offline**.
 > Drop your scans into a folder; the system runs OCR, understands what each
 > document is using a local LLM, **renames** it with date and content, and
