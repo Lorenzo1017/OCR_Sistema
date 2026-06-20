@@ -56,10 +56,8 @@ def _log_rinomina(log: Path, originale: str, nuovo: str):
         w.writerow([originale, nuovo])
 
 
-def _classify_doc(src, ctx, tmp_pdf, conferma):
-    """OCR + classificazione + data normalizzata (+ eventuale conferma utente).
-    Ritorna (text, n_pagine, meta, data)."""
-    text, n_pagine = ctx.extract_text(tmp_pdf)
+def _classifica(src, ctx, text, conferma):
+    """Classificazione LLM + data normalizzata (+ eventuale conferma)."""
     try:
         mittenti = ctx.db.known_senders()
     except Exception:
@@ -70,7 +68,57 @@ def _classify_doc(src, ctx, tmp_pdf, conferma):
     data = normalize_date(meta.get("data")) or extract_date(text)
     if conferma is not None:
         meta, data = conferma(src.name, meta, data)
+    return meta, data
+
+
+def _classify_doc(src, ctx, tmp_pdf, conferma):
+    """(per dry-run) estrae testo + classifica. Ritorna (text, n, meta, data)."""
+    text, n_pagine = ctx.extract_text(tmp_pdf)
+    meta, data = _classifica(src, ctx, text, conferma)
     return text, n_pagine, meta, data
+
+
+def _ocr_to_job(src: Path, sha: str, ctx) -> dict:
+    """Fase OCR (parallelizzabile): produce un PDF temporaneo persistente +
+    testo. Il tempdir va ripulito dopo il commit. NIENTE accesso al DB/Ollama
+    qui (cosi' e' sicuro lanciarlo su piu' thread)."""
+    tmpdir = Path(tempfile.mkdtemp(prefix="ocrsys_"))
+    tmp_pdf = tmpdir / "ocr.pdf"
+    ctx.ocr_to_pdf(src, tmp_pdf)
+    text, n_pagine = ctx.extract_text(tmp_pdf)
+    return {"src": src, "sha": sha, "tmpdir": tmpdir,
+            "tmp_pdf": tmp_pdf, "text": text, "n": n_pagine}
+
+
+def _commit_job(job: dict, ctx, conferma=None) -> str:
+    """Fase commit (SERIALE): classifica (Ollama), archivia, indicizza."""
+    src, sha, tmp_pdf = job["src"], job["sha"], job["tmp_pdf"]
+    text, n_pagine = job["text"], job["n"]
+    try:
+        if ctx.backup_originali:
+            _backup_zip(ctx.originali, src, sha)
+        meta, data = _classifica(src, ctx, text, conferma)
+        ctx.text.mkdir(parents=True, exist_ok=True)
+        (ctx.text / f"{sha[:10]}_{src.stem}.txt").write_text(
+            text, encoding="utf-8", errors="replace")
+        dest_dir, name, status = _destinazione(ctx, meta, data)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        name = resolve_collision(dest_dir, name)
+        shutil.move(str(tmp_pdf), str(dest_dir / name))
+        rel = (dest_dir / name).relative_to(ctx.base)
+        ctx.db.insert({
+            "nome_file": name, "percorso": str(rel),
+            "categoria": meta.get("categoria", "_DaSmistare"),
+            "data_documento": data or "0000-00-00",
+            "mittente": meta.get("mittente", ""), "tipo": meta.get("tipo", ""),
+            "tags": " ".join(meta.get("tags") or []),
+            "testo_completo": text, "n_pagine": n_pagine,
+            "confidenza": meta.get("confidenza", "bassa"), "sha256": sha,
+        })
+        _log_rinomina(ctx.log_rinomine, src.name, str(rel))
+        return status
+    finally:
+        shutil.rmtree(job["tmpdir"], ignore_errors=True)
 
 
 def _destinazione(ctx, meta, data):
@@ -103,44 +151,13 @@ def plan_file(src: Path, ctx: Context, conferma=None) -> dict:
 
 
 def process_file(src: Path, ctx: Context, conferma=None) -> str:
-    """Processa un singolo file. Ritorna 'ok' | 'skip' | 'dasmistare'.
+    """Processa un singolo file (OCR + commit). Ritorna 'ok'|'skip'|'dasmistare'.
     `conferma(nome, meta, data) -> (meta, data)` permette correzione interattiva."""
     sha = _sha256(src)
     if ctx.db.already_processed(sha):
         return "skip"
-
-    # backup degli originali dentro un unico archivio zip. Nome interno univoco
-    # per contenuto (prefisso sha) -> due scansioni diverse con lo stesso nome
-    # (es. IMG_0001.pdf) non si sovrascrivono.
-    if ctx.backup_originali:
-        _backup_zip(ctx.originali, src, sha)
-
-    with tempfile.TemporaryDirectory() as td:
-        tmp_pdf = Path(td) / "ocr.pdf"
-        ctx.ocr_to_pdf(src, tmp_pdf)
-        text, n_pagine, meta, data = _classify_doc(src, ctx, tmp_pdf, conferma)
-
-        ctx.text.mkdir(parents=True, exist_ok=True)
-        (ctx.text / f"{sha[:10]}_{src.stem}.txt").write_text(
-            text, encoding="utf-8", errors="replace")
-
-        dest_dir, name, status = _destinazione(ctx, meta, data)
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        name = resolve_collision(dest_dir, name)
-        shutil.move(str(tmp_pdf), str(dest_dir / name))
-
-    rel = (dest_dir / name).relative_to(ctx.base)
-    ctx.db.insert({
-        "nome_file": name, "percorso": str(rel),
-        "categoria": meta.get("categoria", "_DaSmistare"),
-        "data_documento": data or "0000-00-00",
-        "mittente": meta.get("mittente", ""), "tipo": meta.get("tipo", ""),
-        "tags": " ".join(meta.get("tags") or []),
-        "testo_completo": text, "n_pagine": n_pagine,
-        "confidenza": meta.get("confidenza", "bassa"), "sha256": sha,
-    })
-    _log_rinomina(ctx.log_rinomine, src.name, str(rel))
-    return status
+    job = _ocr_to_job(src, sha, ctx)
+    return _commit_job(job, ctx, conferma)
 
 
 def build_default_context() -> Context:

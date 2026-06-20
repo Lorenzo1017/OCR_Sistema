@@ -78,6 +78,22 @@ def test_backup_disabilitato_niente_zip(tmp_path):
     assert not (tmp_path / "originali" / "originali.zip").exists()
     assert (tmp_path / "archivio/Casa/Utenze/Gas/2024-03-15_Enel_bolletta_gas.pdf").exists()
 
+def test_process_parallel_piu_documenti(tmp_path):
+    from ocrsys.runner import _process_parallel
+    ctx = make_ctx(tmp_path, {
+        "valido": True, "data": "2024-03-15", "mittente": "Enel",
+        "tipo": "bolletta", "dettaglio": "gas",
+        "categoria": "Casa/Utenze/Gas", "confidenza": "alta",
+    })
+    for i in range(5):
+        (tmp_path / f"s{i}.pdf").write_text(f"doc{i}")
+    files = sorted(tmp_path.glob("s*.pdf"))
+    res = _process_parallel(ctx, files, stampa=False)
+    assert "OK:5" in res
+    assert len(list((tmp_path / "archivio").rglob("*.pdf"))) == 5
+    # tutti rimossi dalla inbox (qui = tmp_path)
+    assert sorted(tmp_path.glob("s*.pdf")) == []
+
 def test_dry_run_non_tocca_nulla(tmp_path):
     # plan_file calcola la destinazione SENZA spostare/scrivere/indicizzare
     src = tmp_path / "scan.pdf"; src.write_text("x")

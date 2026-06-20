@@ -91,6 +91,11 @@ _IMP = leggi_impostazioni(IMPOSTAZIONI_YAML)
 # installati. Override in impostazioni.yaml -> ocr_lingue.
 OCR_LINGUE = str(_IMP.get("ocr_lingue", "ita"))
 
+# Quanti documenti OCR-are in parallelo (l'OCR e' CPU-bound; la classificazione
+# LLM resta seriale). Default = core-2, max 4 (per non saturare RAM/Tesseract).
+# Override in impostazioni.yaml -> ocr_workers.
+OCR_WORKERS = int(_IMP.get("ocr_workers", max(1, min(4, (os.cpu_count() or 4) - 2))))
+
 # Se True, salva una copia degli originali in _Sistema/originali/originali.zip.
 # Override in impostazioni.yaml -> backup_originali: false (l'archivio e' gia'
 # la copia catalogata; disattivandolo non si tiene l'originale pristino).

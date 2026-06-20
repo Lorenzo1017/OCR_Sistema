@@ -1,13 +1,15 @@
 import csv
 import hashlib
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from . import config, preflight, ollama_mgr
 from .dates import normalize_date
 from .locking import SingleInstanceLock, AlreadyRunning
 from .notify import notify
-from .pipeline import build_default_context, process_file, plan_file
+from .pipeline import (build_default_context, process_file, plan_file,
+                       _ocr_to_job, _commit_job)
 
 
 def _sha256(p: Path) -> str:
@@ -87,7 +89,22 @@ def _plan_all(ctx, files, conferma=None) -> str:
             f"Saltati:{skip}  Errori:{errori}")
 
 
-def _process_all(ctx, files, stampa=True, conferma=None) -> str:
+def _gestisci_errore(ctx, f, e, stampa):
+    with config.LOG_ERRORI.open("a", newline="", encoding="utf-8") as lf:
+        csv.writer(lf).writerow([f.name, str(e)])
+    try:
+        tentativi = ctx.db.record_error(_chiave_errore(f), f.name, str(e))
+    except Exception:
+        tentativi = 0
+    if tentativi >= config.MAX_TENTATIVI:
+        _quarantena(f)
+        _say(stampa, f"  {f.name}: ERRORE -> quarantena: {str(e)[:60]}")
+    else:
+        _say(stampa, f"  {f.name}: ERRORE ({tentativi}/{config.MAX_TENTATIVI}): "
+                     f"{str(e)[:60]}")
+
+
+def _process_seriale(ctx, files, stampa=True, conferma=None) -> str:
     ok = skip = dasmistare = errori = 0
     for i, f in enumerate(files, 1):
         if stampa:
@@ -97,25 +114,69 @@ def _process_all(ctx, files, stampa=True, conferma=None) -> str:
             if status == "ok":
                 ok += 1; _say(stampa, "OK")
             elif status == "skip":
-                skip += 1; _say(stampa, "gia fatto (duplicato), rimuovo da inbox")
+                skip += 1; _say(stampa, "gia fatto (duplicato)")
             else:
                 dasmistare += 1; _say(stampa, "-> _DaSmistare")
             f.unlink()
         except Exception as e:
             errori += 1
-            with config.LOG_ERRORI.open("a", newline="", encoding="utf-8") as lf:
-                csv.writer(lf).writerow([f.name, str(e)])
-            try:
-                tentativi = ctx.db.record_error(_chiave_errore(f), f.name, str(e))
-            except Exception:
-                tentativi = 0
-            if tentativi >= config.MAX_TENTATIVI:
-                _quarantena(f)
-                _say(stampa, f"ERRORE (tentativo {tentativi}) -> quarantena: {e}")
-            else:
-                _say(stampa, f"ERRORE (tentativo {tentativi}/"
-                             f"{config.MAX_TENTATIVI}), riprovo dopo: {e}")
+            _gestisci_errore(ctx, f, e, stampa)
     return f"OK:{ok}  DaSmistare:{dasmistare}  Saltati:{skip}  Errori:{errori}"
+
+
+def _process_parallel(ctx, files, stampa=True) -> str:
+    """OCR di piu' documenti in parallelo (CPU), classificazione+commit seriale
+    (Ollama+DB nel thread principale). Elabora a blocchi per limitare i tempi."""
+    ok = skip = dasmistare = errori = 0
+    # pre-filtro duplicati (accesso DB seriale, qui)
+    nuovi = []
+    for f in files:
+        try:
+            sha = _sha256(f)
+        except Exception as e:
+            errori += 1; _gestisci_errore(ctx, f, e, stampa); continue
+        if ctx.db.already_processed(sha):
+            skip += 1
+            try: f.unlink()
+            except Exception: pass
+        else:
+            nuovi.append((f, sha))
+
+    tot = len(nuovi); done = 0
+    blocco = max(1, 2 * config.OCR_WORKERS)
+    for start in range(0, tot, blocco):
+        batch = nuovi[start:start + blocco]
+        risultati = []
+        with ThreadPoolExecutor(max_workers=config.OCR_WORKERS) as ex:
+            futs = {ex.submit(_ocr_to_job, f, sha, ctx): f for f, sha in batch}
+            for fut in as_completed(futs):
+                f = futs[fut]
+                try:
+                    risultati.append((f, fut.result(), None))
+                except Exception as e:
+                    risultati.append((f, None, e))
+        # commit seriale (Ollama + DB)
+        for f, job, ocr_err in risultati:
+            done += 1
+            if ocr_err is not None:
+                errori += 1; _gestisci_errore(ctx, f, ocr_err, stampa); continue
+            try:
+                status = _commit_job(job, ctx)
+                if status == "ok": ok += 1
+                else: dasmistare += 1
+                try: f.unlink()
+                except Exception: pass
+                _say(stampa, f"[{done}/{tot}] {f.name} -> {status}")
+            except Exception as e:
+                errori += 1; _gestisci_errore(ctx, f, e, stampa)
+    return f"OK:{ok}  DaSmistare:{dasmistare}  Saltati:{skip}  Errori:{errori}"
+
+
+def _process_all(ctx, files, stampa=True, conferma=None) -> str:
+    # interattivo o 1 solo worker -> seriale; altrimenti OCR in parallelo
+    if conferma is not None or config.OCR_WORKERS <= 1:
+        return _process_seriale(ctx, files, stampa, conferma)
+    return _process_parallel(ctx, files, stampa)
 
 
 def _say(stampa, msg):
