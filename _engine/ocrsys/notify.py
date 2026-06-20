@@ -3,28 +3,37 @@ import shutil
 import subprocess
 
 
-def _safe(s: str) -> str:
-    return str(s).replace('"', "'").replace("\n", " ")
+def _mac(s: str) -> str:
+    # dentro stringa AppleScript fra doppi apici: neutralizza \ e "
+    return str(s).replace("\\", " ").replace('"', "'").replace("\n", " ")
+
+
+def _win(s: str) -> str:
+    # dentro stringa PowerShell fra apici singoli: raddoppia l'apice singolo
+    # (evita rottura/iniezione di comandi da nomi file tipo  '; rm ... )
+    return str(s).replace("'", "''").replace("\n", " ")
 
 
 def notify(title: str, message: str) -> None:
     """Notifica desktop nativa, best-effort, cross-platform.
     Fallisce in silenzio se il sistema non la supporta."""
-    title, message = _safe(title), _safe(message)
     system = platform.system()
     try:
         if system == "Darwin":
+            t, m = _mac(title), _mac(message)
             subprocess.run(
                 ["osascript", "-e",
-                 f'display notification "{message}" with title "{title}" '
+                 f'display notification "{m}" with title "{t}" '
                  f'sound name "Glass"'],
                 check=False, capture_output=True,
             )
         elif system == "Linux":
+            # argomenti passati come lista -> nessuna shell, nessuna injection
             if shutil.which("notify-send"):
-                subprocess.run(["notify-send", title, message],
+                subprocess.run(["notify-send", str(title), str(message)],
                                check=False, capture_output=True)
         elif system == "Windows":
+            title, message = _win(title), _win(message)
             # Toast via PowerShell (nessuna dipendenza esterna).
             ps = (
                 "[Windows.UI.Notifications.ToastNotificationManager, "

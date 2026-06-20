@@ -11,6 +11,13 @@ def test_valuta_utenza_autocorregge_acqua_da_luce():
     assert ok is True
     assert nuova == "Casa/Utenze/Acqua"   # dominanza netta -> corretto
 
+def test_valuta_utenza_no_falso_positivo_gasolio():
+    # "gasolio" non deve contare come Gas; "automobile" non come Telefono(mobile)
+    txt = "rifornimento gasolio per automobile, nessuna utenza domestica"
+    nuova, ok = valuta_utenza("Casa/Utenze/Gas", txt)
+    # nessun riscontro reale di utenza -> fiducia al modello, invariato
+    assert (nuova, ok) == ("Casa/Utenze/Gas", True)
+
 def test_valuta_utenza_scelta_coerente_invariata():
     txt = "Enel gas naturale consumo 142 Smc gas"
     assert valuta_utenza("Casa/Utenze/Gas", txt) == ("Casa/Utenze/Gas", True)
@@ -26,6 +33,13 @@ def test_valuta_utenza_mismatch_ambiguo_a_dasmistare():
     txt = "fattura con un riferimento ad acqua una volta"
     nuova, ok = valuta_utenza("Casa/Utenze/Gas", txt)
     assert ok is False
+
+def test_parse_normalizza_categoria_con_spazi():
+    raw = '{"data":"2024-03-15","mittente":"Enel","tipo":"bolletta",' \
+          '"dettaglio":"gas","categoria":" Casa/Utenze/Gas ","confidenza":"Alta"}'
+    r = parse_response(raw, TAX)
+    assert r["categoria"] == "Casa/Utenze/Gas"
+    assert r["valido"] is True   # spazi + "Alta" maiuscolo normalizzati
 
 def test_parse_valid():
     raw = '{"data":"2024-03-15","mittente":"Enel","tipo":"bolletta",' \

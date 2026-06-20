@@ -9,16 +9,30 @@ _COMMON = ["-l", "ita", "--deskew", "--rotate-pages", "--image-dpi", "300"]
 
 
 def _run(src: Path, out_pdf: Path, mode: str) -> None:
-    subprocess.run(
+    r = subprocess.run(
         ["ocrmypdf", *_COMMON, mode, str(src), str(out_pdf)],
-        check=True, capture_output=True,
+        capture_output=True,
     )
+    if r.returncode != 0:
+        # include lo stderr di ocrmypdf nel messaggio (altrimenti il log dice
+        # solo "exit status N" e il debug e' impossibile)
+        err = (r.stderr or b"").decode("utf-8", "replace").strip()[-400:]
+        raise subprocess.CalledProcessError(
+            r.returncode, "ocrmypdf", output=r.stdout, stderr=err)
+
+
+def _read_pdf_text(pdf: Path) -> tuple:
+    # apre il file esplicitamente e lo chiude (su Windows un handle aperto puo'
+    # impedire la cancellazione della cartella temporanea)
+    with open(pdf, "rb") as fh:
+        reader = PdfReader(fh)
+        pages = [(p.extract_text() or "") for p in reader.pages]
+        return "\n".join(pages), len(pages)
 
 
 def _quick_text(pdf: Path) -> str:
     try:
-        reader = PdfReader(str(pdf))
-        return "\n".join((p.extract_text() or "") for p in reader.pages)
+        return _read_pdf_text(pdf)[0]
     except Exception:
         return ""
 
@@ -46,6 +60,4 @@ def ocr_to_pdf(src: Path, out_pdf: Path) -> None:
 
 def extract_text(pdf: Path):
     """Ritorna (testo, n_pagine) dal PDF cercabile."""
-    reader = PdfReader(str(pdf))
-    pages = [(p.extract_text() or "") for p in reader.pages]
-    return "\n".join(pages), len(reader.pages)
+    return _read_pdf_text(pdf)

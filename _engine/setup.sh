@@ -40,9 +40,17 @@ esac
 
 # --- 4. Modello LLM ---
 echo "==> Scarico il modello qwen2.5:7b (~5GB) se manca..."
-ollama serve >/dev/null 2>&1 &
-sleep 3
+OLLAMA_WAS_UP=1
+curl -s http://localhost:11434/api/tags >/dev/null 2>&1 || OLLAMA_WAS_UP=0
+OLLAMA_PID=""
+if [ "$OLLAMA_WAS_UP" = "0" ]; then
+  ollama serve >/dev/null 2>&1 &
+  OLLAMA_PID=$!
+  sleep 3
+fi
 ollama pull qwen2.5:7b || true
+# se l'abbiamo avviato noi per il pull, fermalo (non lasciarlo orfano)
+[ -n "$OLLAMA_PID" ] && kill "$OLLAMA_PID" 2>/dev/null || true
 
 # --- 5. Avvio automatico al login ---
 PY="$ENGINE/.venv/bin/python"
@@ -84,7 +92,12 @@ EOF
 fi
 
 # --- 6. Alias comodi (zsh/bash) ---
-RC="$HOME/.zshrc"; [ -n "${BASH_VERSION:-}" ] && RC="$HOME/.bashrc"
+# usa la shell di LOGIN dell'utente, non quella che esegue lo script
+case "${SHELL:-}" in
+  *zsh)  RC="$HOME/.zshrc" ;;
+  *bash) RC="$HOME/.bashrc" ;;
+  *)     RC="$HOME/.profile" ;;
+esac
 if ! grep -q "alias ocr-processa" "$RC" 2>/dev/null; then
   cat >> "$RC" <<EOF
 

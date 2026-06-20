@@ -38,17 +38,19 @@ class Database:
         )
         return cur.fetchone() is not None
 
-    def insert(self, doc: dict):
+    def insert(self, doc: dict) -> bool:
+        """Ritorna True se inserito, False se gia' presente (sha duplicato)."""
         cols = ["nome_file", "percorso", "categoria", "data_documento",
                 "mittente", "tipo", "testo_completo", "n_pagine",
                 "confidenza", "sha256"]
         placeholders = ", ".join("?" for _ in cols)
-        self.conn.execute(
+        cur = self.conn.execute(
             f"INSERT OR IGNORE INTO documenti ({', '.join(cols)}) "
             f"VALUES ({placeholders})",
             tuple(doc[c] for c in cols),
         )
         self.conn.commit()
+        return cur.rowcount > 0
 
     def record_error(self, sha256: str, nome: str, errore: str) -> int:
         """Registra un fallimento su un file. Ritorna il numero di tentativi
@@ -66,11 +68,27 @@ class Database:
         )
         return cur.fetchone()[0]
 
+    @staticmethod
+    def _fts_query(query: str) -> str:
+        """Input utente -> query FTS5 sicura: ogni parola come termine letterale
+        fra apici (i caratteri \" * : ( ) - non vengono interpretati come
+        sintassi -> niente 'fts5: syntax error')."""
+        return " ".join('"' + t.replace('"', '""') + '"' for t in query.split())
+
     def search(self, query: str) -> list:
+        match = self._fts_query(query)
+        if not match:
+            return []
         cur = self.conn.execute(
             "SELECT d.* FROM documenti d "
             "JOIN documenti_fts f ON f.rowid = d.id "
             "WHERE documenti_fts MATCH ? ORDER BY d.data_documento DESC",
-            (query,),
+            (match,),
         )
         return [dict(r) for r in cur.fetchall()]
+
+    def close(self):
+        try:
+            self.conn.close()
+        except Exception:
+            pass

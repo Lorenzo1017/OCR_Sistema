@@ -29,6 +29,20 @@ def test_already_processed(tmp_path):
     db.insert(make_doc())
     assert db.already_processed("abc123") is True
 
+def test_search_caratteri_speciali_non_crasha(tmp_path):
+    db = Database(tmp_path / "index.db")
+    db.insert(make_doc())
+    # query con caratteri che FTS5 interpreterebbe come sintassi
+    for q in ['enel "bolletta', 'a/b', 'tariffa:', 'gas* (', 'a OR b', '- x']:
+        assert isinstance(db.search(q), list)   # niente eccezioni
+    # termine reale fra i caratteri speciali trova comunque
+    assert len(db.search('"gas"')) == 1
+
+def test_insert_ritorna_false_su_duplicato(tmp_path):
+    db = Database(tmp_path / "index.db")
+    assert db.insert(make_doc()) is True
+    assert db.insert(make_doc()) is False   # stesso sha -> ignorato
+
 def test_record_error_increments(tmp_path):
     db = Database(tmp_path / "index.db")
     assert db.record_error("sha9", "scan.pdf", "boom") == 1

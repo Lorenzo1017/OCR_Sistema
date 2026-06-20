@@ -10,10 +10,22 @@ BASE = Path(os.environ.get("OCR_SISTEMA_HOME",
 
 # Aggiunge le dir bin comuni al PATH: gli scheduler (launchd/systemd/Task
 # Scheduler) partono con PATH minimo e non troverebbero tesseract/ollama.
-# Su Windows queste dir non esistono -> innocuo, i tool sono nel PATH di sistema.
-for _p in ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"):
-    if _p not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = os.environ.get("PATH", "") + os.pathsep + _p
+if os.name == "nt":
+    _localapp = os.environ.get("LOCALAPPDATA", "")
+    _extra = [
+        r"C:\Program Files\Tesseract-OCR",
+        r"C:\Program Files\Ghostscript\bin",
+        os.path.join(_localapp, "Programs", "Ollama") if _localapp else "",
+        os.path.join(_localapp, "Programs", "Tesseract-OCR") if _localapp else "",
+    ]
+else:
+    _extra = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+
+_cur = os.environ.get("PATH", "")
+for _p in _extra:
+    if _p and _p not in _cur.split(os.pathsep):
+        _cur = _cur + os.pathsep + _p
+os.environ["PATH"] = _cur
 
 INBOX = BASE / "inbox"
 ARCHIVIO = BASE / "archivio"

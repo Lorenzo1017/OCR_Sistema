@@ -11,8 +11,19 @@ from .pipeline import build_default_context, process_file
 
 def _sha256(p: Path) -> str:
     h = hashlib.sha256()
-    h.update(p.read_bytes())
+    with open(p, "rb") as fh:                       # a blocchi: no OOM su PDF grandi
+        for chunk in iter(lambda: fh.read(1 << 16), b""):
+            h.update(chunk)
     return h.hexdigest()
+
+
+def _chiave_errore(f: Path) -> str:
+    """Chiave per il conteggio errori: sha del contenuto; se il file non e'
+    leggibile, ripiega sul nome (cosi' la quarantena scatta comunque)."""
+    try:
+        return _sha256(f)
+    except Exception:
+        return "name:" + hashlib.sha256(f.name.encode("utf-8", "replace")).hexdigest()
 
 
 def _quarantena(f: Path):
@@ -41,10 +52,10 @@ def _process_all(ctx, files, stampa=True) -> str:
             f.unlink()
         except Exception as e:
             errori += 1
-            with config.LOG_ERRORI.open("a", newline="") as lf:
+            with config.LOG_ERRORI.open("a", newline="", encoding="utf-8") as lf:
                 csv.writer(lf).writerow([f.name, str(e)])
             try:
-                tentativi = ctx.db.record_error(_sha256(f), f.name, str(e))
+                tentativi = ctx.db.record_error(_chiave_errore(f), f.name, str(e))
             except Exception:
                 tentativi = 0
             if tentativi >= config.MAX_TENTATIVI:
@@ -92,10 +103,22 @@ def run_once(stampa=True, notifiche=True) -> str:
                 print(f"Trovati {len(files)} documenti. Inizio...\n")
 
             proc = ollama_mgr.ensure()
+            # se Ollama non e' salito, NON processare: i file finirebbero tutti
+            # in errore e poi in quarantena pur essendo validi.
+            if not ollama_mgr.is_up():
+                ollama_mgr.stop_server(proc)
+                msg = "Ollama non disponibile: riprovo al prossimo giro."
+                if stampa:
+                    print(msg)
+                if notifiche:
+                    notify("OCR Sistema", msg)
+                return msg
+
             ctx = build_default_context()
             try:
                 riepilogo = _process_all(ctx, files, stampa=stampa)
             finally:
+                ctx.db.close()                # chiude la connessione SQLite
                 ollama_mgr.stop_model()       # libera RAM modello
                 ollama_mgr.stop_server(proc)  # ferma server se avviato da noi
 

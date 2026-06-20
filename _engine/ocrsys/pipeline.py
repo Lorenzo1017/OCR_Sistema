@@ -32,7 +32,7 @@ def _sha256(p: Path) -> str:
 def _log_rinomina(base: Path, originale: str, nuovo: str):
     log = base / "log_rinomine.csv"
     new = not log.exists()
-    with log.open("a", newline="") as f:
+    with log.open("a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         if new:
             w.writerow(["originale", "nuovo"])
@@ -57,7 +57,8 @@ def process_file(src: Path, ctx: Context) -> str:
         ctx.ocr_to_pdf(src, tmp_pdf)
         text, n_pagine = ctx.extract_text(tmp_pdf)
 
-        (ctx.base / "text" / f"{sha[:10]}_{src.stem}.txt").write_text(text)
+        (ctx.base / "text" / f"{sha[:10]}_{src.stem}.txt").write_text(
+            text, encoding="utf-8", errors="replace")
 
         meta = ctx.classify(text, ctx.taxonomy)
         # Qwen puo' restituire data in formati vari (15/03/2024): normalizza

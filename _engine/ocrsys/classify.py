@@ -58,8 +58,8 @@ def parse_response(raw: str, taxonomy: Taxonomy) -> dict:
     data = _extract_json(raw)
     if not isinstance(data, dict) or not _REQUIRED.issubset(data.keys()):
         return {"valido": False}
-    cat = data.get("categoria", "")
-    conf = data.get("confidenza", "")
+    cat = str(data.get("categoria", "")).strip().strip("/")
+    conf = str(data.get("confidenza", "")).strip().lower()
     valido = taxonomy.is_valid(cat) and conf in ("alta", "media")
     return {
         "data": data.get("data") or None,
@@ -72,21 +72,24 @@ def parse_response(raw: str, taxonomy: Taxonomy) -> dict:
     }
 
 
-# Parole chiave per disambiguare i sotto-tipi di utenza (errore comune del 7B:
-# bolletta acqua filata sotto Luce per via di una riga di boilerplate). Si conta
-# quante volte ricorre ogni gruppo: vince l'utenza con piu' riscontri.
-_UTENZE_KW = {
-    "Gas": ["gas", "smc", "metano"],
-    "Luce": ["energia elettrica", "kwh", "elettric", "kw "],
-    "Acqua": ["acqua", "acque", "idric", "acquedott", "fognatura", "depurazione"],
-    "Internet": ["internet", "fibra", "adsl", "giga", "banda larga"],
-    "Telefono": ["telefon", "mobile", "sim", "ricarica", "cellulare"],
+# Pattern per disambiguare i sotto-tipi di utenza (errore comune del 7B: bolletta
+# acqua filata sotto Luce per una riga di boilerplate). Confini di parola per
+# evitare falsi positivi ("gas" dentro "gasolio", "sim" dentro "simile",
+# "mobile" dentro "automobile"). I `\w*` coprono le desinenze (elettric-a/-o).
+_UTENZE_RE = {
+    "Gas": r"\bgas\b|\bsmc\b|\bmetano\b",
+    "Luce": r"\benergia elettrica\b|\bkwh\b|\bkilowatt\w*|\belettric\w*",
+    "Acqua": r"\bacqua\w*|\bacque\w*|\bidric\w*|\bacquedott\w*|\bfognatur\w*|\bdepurazion\w*",
+    "Internet": r"\binternet\b|\bfibra\b|\badsl\b|\bgiga\b|\bbanda larga\b",
+    "Telefono": r"\btelefon\w*|\bmobile\b|\bsim\b|\bricaric\w*|\bcellular\w*",
 }
+_UTENZE_KW = _UTENZE_RE   # alias per compatibilita' (chi controlla i leaf)
+_UTENZE_COMPILED = {leaf: re.compile(pat) for leaf, pat in _UTENZE_RE.items()}
 
 
 def _punteggi(text: str) -> dict:
     t = text.lower()
-    return {leaf: sum(t.count(k) for k in kws) for leaf, kws in _UTENZE_KW.items()}
+    return {leaf: len(rx.findall(t)) for leaf, rx in _UTENZE_COMPILED.items()}
 
 
 def valuta_utenza(categoria: str, text: str):

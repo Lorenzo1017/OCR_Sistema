@@ -13,7 +13,10 @@ _TESTO = re.compile(
 
 
 def _norm_year(y: int) -> int:
-    return 2000 + y if y < 100 else y
+    if y >= 100:
+        return y
+    # pivot: 00-50 -> 20xx, 51-99 -> 19xx (un '98' e' il 1998, non il 2098)
+    return 2000 + y if y <= 50 else 1900 + y
 
 
 def _valid(g: int, m: int, a: int) -> bool:
@@ -40,6 +43,10 @@ def extract_date(text: str):
     candidates = []
     for m in _NUM.finditer(text):
         g, mo, a = int(m.group(1)), int(m.group(2)), _norm_year(int(m.group(3)))
+        # recupero gg/mm vs mm/gg: se il "mese" e' >12 ma il "giorno" e' <=12,
+        # probabilmente era in ordine americano -> scambia.
+        if mo > 12 and g <= 12:
+            g, mo = mo, g
         if _valid(g, mo, a):
             candidates.append((m.start(), a, mo, g))
     for m in _TESTO.finditer(text):
