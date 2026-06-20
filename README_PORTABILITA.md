@@ -1,86 +1,87 @@
-# 🌍 OCR_Sistema — App portabile (macOS · Linux · Windows)
+# 🌍 OCR_Sistema — Portable app (macOS · Linux · Windows)
 
-Questa cartella **è l'applicazione**. Puoi spostarla, copiarla o incollarla dove
-vuoi (altra cartella, chiavetta USB, altro computer). Il codice non ha percorsi
-fissi: si adatta a dove si trova la cartella.
+This folder **is the application**. You can move it, copy it, or paste it wherever
+you like (another folder, a USB drive, another computer). The code has no hardcoded
+paths: it adapts to wherever the folder is located.
 
-## Cosa è portabile e cosa no
+## What is portable and what is not
 
-| Elemento | Portabile copia-incolla? |
+| Item | Portable by copy-paste? |
 |---|---|
-| Codice (`_engine/`), `categorie.yaml`, documenti (`inbox/`, `archivio/`…) | ✅ Sì, ovunque e su qualsiasi OS |
-| Ambiente Python (`_engine/.venv/`) | ❌ Specifico per OS → si **ricrea** col setup |
-| Programmi esterni (Tesseract, OCRmyPDF, Ollama) | ❌ Si **installano** una volta per OS |
+| Code (`_engine/`), `categorie.yaml`, documents (`inbox/`, `archivio/`…) | ✅ Yes, anywhere and on any OS |
+| Python environment (`_engine/.venv/`) | ❌ OS-specific → it is **recreated** by the setup |
+| External programs (Tesseract, OCRmyPDF, Ollama) | ❌ They are **installed** once per OS |
 
-In pratica: **copi la cartella** → su un nuovo computer **lanci il setup** del suo
-sistema operativo (ricrea l'ambiente e installa l'avvio automatico). Fatto.
+In short: **copy the folder** → on a new computer **run the setup** for its
+operating system (it recreates the environment and installs the automatic startup). Done.
 
-## Installazione per sistema operativo
+## Installation by operating system
 
 ### 🍎 macOS / 🐧 Linux
 ```bash
-cd /percorso/della/cartella/OCR_Sistema
+cd /path/to/folder/OCR_Sistema
 bash _engine/setup.sh
 ```
-Installa i programmi (su macOS via Homebrew), crea l'ambiente Python, scarica il
-modello e configura l'avvio automatico (LaunchAgent su macOS, systemd su Linux).
+It installs the programs (on macOS via Homebrew), creates the Python environment,
+downloads the model, and configures automatic startup (LaunchAgent on macOS,
+systemd on Linux).
 
 ### 🪟 Windows
-1. Installa una volta: **Tesseract** (con lingua *ita*), **Ghostscript**,
-   **OCRmyPDF**, **Ollama** (link mostrati dallo script).
-2. In PowerShell, nella cartella:
+1. Install once: **Tesseract** (with the *ita* language), **Ghostscript**,
+   **OCRmyPDF**, **Ollama** (links shown by the script).
+2. In PowerShell, inside the folder:
    ```powershell
    powershell -ExecutionPolicy Bypass -File _engine\setup.ps1
    ```
-   Crea l'ambiente, scarica il modello e registra l'avvio automatico (Task Scheduler).
+   It creates the environment, downloads the model, and registers automatic startup (Task Scheduler).
 
-## Come funziona (uguale su tutti gli OS)
+## How it works (the same on every OS)
 
-- Un **watcher** (`watch.py`) controlla `inbox/` ogni 15 minuti.
-- Se trova documenti: avvia Ollama, fa OCR, classifica, rinomina, smista in
-  `archivio/`, poi **scarica il modello e ferma Ollama** (torna a riposo).
-- Ricevi una **notifica** all'avvio e a fine lavoro (notifica nativa di ogni OS).
-- I documenti incerti finiscono in `_DaSmistare/`; gli originali sono salvati in
+- A **watcher** (`watch.py`) checks `inbox/` every 15 minutes.
+- If it finds documents: it starts Ollama, runs OCR, classifies, renames, sorts into
+  `archivio/`, then **unloads the model and stops Ollama** (back to idle).
+- You receive a **notification** at startup and when the job finishes (each OS's native notification).
+- Uncertain documents end up in `_DaSmistare/`; the originals are saved in
   `originali/`.
 
-## Comandi manuali (opzionali)
+## Manual commands (optional)
 
-| Azione | macOS/Linux | Windows |
+| Action | macOS/Linux | Windows |
 |---|---|---|
-| Processa subito | `ocr-processa` | `_engine\.venv\Scripts\python _engine\ocr_processa.py` |
-| Cerca un documento | `ocr-cerca "parole"` | `…\python _engine\ocr_cerca.py "parole"` |
-| Avvia il watcher a mano | `_engine/.venv/bin/python _engine/watch.py` | `…\python _engine\watch.py` |
+| Process now | `ocr-processa` | `_engine\.venv\Scripts\python _engine\ocr_processa.py` |
+| Search for a document | `ocr-cerca "words"` | `…\python _engine\ocr_cerca.py "words"` |
+| Start the watcher manually | `_engine/.venv/bin/python _engine/watch.py` | `…\python _engine\watch.py` |
 
-## Spostare la cartella (stesso computer)
-Spostala pure. Poi ri-lancia il setup del tuo OS **solo** per aggiornare l'avvio
-automatico ai nuovi percorsi (non riscarica nulla se già presente). In alternativa
-puoi forzare la posizione dei dati con la variabile d'ambiente
+## Moving the folder (same computer)
+Go ahead and move it. Then re-run the setup for your OS **only** to update the
+automatic startup to the new paths (it does not re-download anything if already present).
+Alternatively, you can force the location of the data with the environment variable
 `OCR_SISTEMA_HOME`.
 
-## Verifica / diagnostica
-Per controllare **hardware e componenti** in qualsiasi momento:
+## Check / diagnostics
+To inspect **hardware and components** at any time:
 ```bash
 # macOS/Linux
-ocr-check            # oppure:  _engine/.venv/bin/python _engine/check.py
+ocr-check            # or:  _engine/.venv/bin/python _engine/check.py
 # Windows
 _engine\.venv\Scripts\python _engine\check.py
 ```
-Mostra RAM/CPU/disco, dice se l'hardware è adeguato, e — se manca un componente —
-stampa il **comando esatto** per installarlo (Tesseract, OCRmyPDF, Ollama, modello).
-Il `setup` esegue questo controllo automaticamente prima di scaricare il modello.
+It shows RAM/CPU/disk, tells you whether the hardware is adequate, and — if a component
+is missing — prints the **exact command** to install it (Tesseract, OCRmyPDF, Ollama, model).
+The `setup` runs this check automatically before downloading the model.
 
-## Requisiti hardware
+## Hardware requirements
 - **Python 3.9+**
-- **Tesseract** (con dati lingua *ita*), **OCRmyPDF**, **Ollama** + modello
-  `qwen2.5:7b` (~5GB).
-- **RAM**: minimo 8GB, **consigliati 16GB** (il modello usa ~5GB solo durante
-  l'elaborazione).
-- **Disco**: almeno 10GB liberi (modello + documenti).
-- **CPU**: 4+ core consigliati.
+- **Tesseract** (with the *ita* language data), **OCRmyPDF**, **Ollama** + the
+  `qwen2.5:7b` model (~5GB).
+- **RAM**: minimum 8GB, **16GB recommended** (the model uses ~5GB only during
+  processing).
+- **Disk**: at least 10GB free (model + documents).
+- **CPU**: 4+ cores recommended.
 
-## Problemi comuni
-- *"Ambiente non pronto: manca …"* → manca un programma: installalo (vedi sopra).
-- *Niente notifiche* → la prima volta consenti le notifiche nelle impostazioni
-  dell'OS (su Linux serve `notify-send`).
-- *Non parte da solo* → riavvia il computer o ri-lancia il setup.
-- I test: `cd _engine && .venv/bin/python -m pytest tests/ -q`.
+## Common problems
+- *"Environment not ready: missing …"* → a program is missing: install it (see above).
+- *No notifications* → the first time, allow notifications in the OS settings
+  (on Linux you need `notify-send`).
+- *It doesn't start on its own* → restart the computer or re-run the setup.
+- Tests: `cd _engine && .venv/bin/python -m pytest tests/ -q`.

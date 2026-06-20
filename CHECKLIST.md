@@ -1,63 +1,63 @@
-# ✅ CHECKLIST — Uso rapido OCR_Sistema
+# ✅ CHECKLIST — Quick use of OCR_Sistema
 
-Stampa mentale prima di processare. Spunta dall'alto in basso.
-
----
-
-## 🟢 Uso normale (AUTOMATICO)
-
-- [ ] 1. Metto i file (PDF/immagini) nella cartella **`inbox/`**
-- [ ] 2. ...non faccio altro. Entro 15 minuti partono da soli.
-- [ ] 3. Più tardi controllo **`archivio/`** → file ordinati nelle cartelle
-- [ ] 4. Controllo **`_DaSmistare/`** → sistemo a mano i pochi incerti
-
-> Vuoi forzare subito senza aspettare? Terminale: `ocr-processa`
+A mental printout before processing. Check off from top to bottom.
 
 ---
 
-## 🔵 Prima volta (setup, una sola volta)
+## 🟢 Normal use (AUTOMATIC)
 
-- [ ] Sistema installato (Tesseract + Ollama + Qwen2.5 + script) — fatto durante il setup
-- [ ] Test su **5-10 documenti** campione
-- [ ] Verificato: i nomi file mi piacciono
-- [ ] Verificato: le cartelle di smistamento sono giuste
-- [ ] Se ok → posso processare il blocco grande
+- [ ] 1. I put the files (PDF/images) in the **`inbox/`** folder
+- [ ] 2. ...I do nothing else. Within 15 minutes they start on their own.
+- [ ] 3. Later I check **`archivio/`** → files sorted into the folders
+- [ ] 4. I check **`_DaSmistare/`** → I manually sort out the few uncertain ones
 
----
-
-## 🟡 Se un documento finisce in _DaSmistare
-
-- [ ] Apro il PDF e leggo cos'è
-- [ ] Lo rinomino seguendo lo schema: `AAAA-MM-GG_Mittente_Tipo_Dettaglio.pdf`
-- [ ] Lo sposto nella cartella giusta dentro `archivio/`
+> Want to force a run right away without waiting? Terminal: `ocr-processa`
 
 ---
 
-## 🟠 Manutenzione (ogni tanto)
+## 🔵 First time (setup, only once)
 
-- [ ] Voglio una categoria nuova? → modifico **`categorie.yaml`**
-- [ ] Controllo **`log_errori.csv`**: ci sono file falliti da rifare?
-- [ ] File da rifare → li rimetto in `inbox/` e rilancio
-
----
-
-## 🔴 Regole d'oro (non dimenticare)
-
-- ❌ **NON** cancellare la cartella `originali/` (è il backup)
-- ❌ **NON** modificare i file dentro `archivio/` a mano se non serve
-- ✅ Gli originali sono sempre recuperabili
-- ✅ Nel dubbio → un file in `_DaSmistare/` è meglio che messo nel posto sbagliato
-- ✅ Tutto resta sul Mac, niente internet
+- [ ] System installed (Tesseract + Ollama + Qwen2.5 + scripts) — done during setup
+- [ ] Tested on **5-10 sample documents**
+- [ ] Verified: I like the file names
+- [ ] Verified: the sorting folders are correct
+- [ ] If everything is OK → I can process the big batch
 
 ---
 
-## 📞 Comandi utili
+## 🟡 If a document ends up in _DaSmistare
 
-| Voglio... | Scrivo nel Terminale |
+- [ ] I open the PDF and read what it is
+- [ ] I rename it following the scheme: `YYYY-MM-DD_Sender_Type_Detail.pdf`
+- [ ] I move it to the right folder inside `archivio/`
+
+---
+
+## 🟠 Maintenance (every now and then)
+
+- [ ] Want a new category? → I edit **`categorie.yaml`**
+- [ ] I check **`log_errori.csv`**: are there failed files to redo?
+- [ ] Files to redo → I put them back in `inbox/` and run again
+
+---
+
+## 🔴 Golden rules (don't forget)
+
+- ❌ **DO NOT** delete the `originali/` folder (it's the backup)
+- ❌ **DO NOT** edit the files inside `archivio/` by hand unless needed
+- ✅ The originals are always recoverable
+- ✅ When in doubt → a file in `_DaSmistare/` is better than one put in the wrong place
+- ✅ Everything stays on the Mac, no internet
+
+---
+
+## 📞 Useful commands
+
+| I want to... | I type in the Terminal |
 |---|---|
-| Forzare subito un giro | `ocr-processa` |
-| Cercare un documento | `ocr-cerca "parole"` |
-| Spegnere l'automatico | `ocr-auto-off` |
-| Riaccendere l'automatico | `ocr-auto-on` |
-| Vedere cosa ha fatto da solo | apro `log_auto.txt` |
-| Vedere la guida completa | apro `GUIDA.md` |
+| Force a run right away | `ocr-processa` |
+| Search for a document | `ocr-cerca "words"` |
+| Turn off the automatic mode | `ocr-auto-off` |
+| Turn the automatic mode back on | `ocr-auto-on` |
+| See what it did on its own | open `log_auto.txt` |
+| See the full guide | open `GUIDA.md` |

@@ -1,6 +1,9 @@
-# Albero categorie per smistamento documenti.
-# Qwen sceglie SOLO tra questi rami. Nessun match sicuro -> _DaSmistare.
-# Modifica liberamente: aggiungi/togli rami, poi rilancia. Niente codice da toccare.
+# Category tree for sorting documents.
+# Qwen picks ONLY among these branches. No confident match -> _DaSmistare.
+# Edit freely: add/remove branches, then re-run. No code to touch.
+# Note: category names are in Italian on purpose (they target Italian documents);
+# they are real paths used by the app, so keep them as-is unless you also adapt
+# your own documents/language.
 
 Casa:
   Utenze: [Gas, Luce, Acqua, Internet, Telefono]
