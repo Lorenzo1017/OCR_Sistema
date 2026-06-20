@@ -23,7 +23,10 @@ def make_ctx(tmp_path, classify_result, text="Enel gas 15/03/2024"):
         return dict(classify_result)
 
     return Context(
-        base=base, taxonomy=tax, db=db,
+        base=base, archivio=base / "archivio", da_smistare=base / "_DaSmistare",
+        originali=base / "originali", text=base / "text",
+        log_rinomine=base / "log_rinomine.csv",
+        taxonomy=tax, db=db,
         ocr_to_pdf=fake_ocr, extract_text=fake_extract, classify=fake_classify,
     )
 

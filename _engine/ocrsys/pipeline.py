@@ -16,7 +16,12 @@ from .taxonomy import Taxonomy
 
 @dataclass
 class Context:
-    base: Path
+    base: Path            # ROOT, per relative_to dei percorsi archiviati
+    archivio: Path
+    da_smistare: Path
+    originali: Path
+    text: Path
+    log_rinomine: Path
     taxonomy: Taxonomy
     db: Database
     ocr_to_pdf: Callable
@@ -30,10 +35,10 @@ def _sha256(p: Path) -> str:
     return h.hexdigest()
 
 
-def _backup_zip(base: Path, src: Path, sha: str):
+def _backup_zip(originali_dir: Path, src: Path, sha: str):
     """Salva l'originale dentro originali/originali.zip (nome interno con
     prefisso sha). Salta se gia' presente."""
-    zip_path = base / "originali" / "originali.zip"
+    zip_path = originali_dir / "originali.zip"
     zip_path.parent.mkdir(parents=True, exist_ok=True)
     arcname = f"{sha[:10]}_{src.name}"
     with zipfile.ZipFile(zip_path, "a", zipfile.ZIP_DEFLATED) as z:
@@ -41,8 +46,7 @@ def _backup_zip(base: Path, src: Path, sha: str):
             z.write(src, arcname)
 
 
-def _log_rinomina(base: Path, originale: str, nuovo: str):
-    log = base / "log_rinomine.csv"
+def _log_rinomina(log: Path, originale: str, nuovo: str):
     new = not log.exists()
     with log.open("a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -71,11 +75,11 @@ def _classify_doc(src, ctx, tmp_pdf, conferma):
 def _destinazione(ctx, meta, data):
     """Ritorna (dest_dir, name, status) in base alla validità della classifica."""
     if meta.get("valido") and ctx.taxonomy.is_valid(meta["categoria"]):
-        dest_dir = ctx.base / "archivio" / meta["categoria"]
+        dest_dir = ctx.archivio / meta["categoria"]
         name = build_name(data, meta["mittente"], meta["tipo"], meta["dettaglio"])
         status = "ok"
     else:
-        dest_dir = ctx.base / "_DaSmistare"
+        dest_dir = ctx.da_smistare
         name = build_name(None, meta.get("mittente", ""),
                           meta.get("tipo", "documento"), meta.get("dettaglio", ""))
         status = "dasmistare"
@@ -107,14 +111,15 @@ def process_file(src: Path, ctx: Context, conferma=None) -> str:
     # backup degli originali dentro un unico archivio zip. Nome interno univoco
     # per contenuto (prefisso sha) -> due scansioni diverse con lo stesso nome
     # (es. IMG_0001.pdf) non si sovrascrivono.
-    _backup_zip(ctx.base, src, sha)
+    _backup_zip(ctx.originali, src, sha)
 
     with tempfile.TemporaryDirectory() as td:
         tmp_pdf = Path(td) / "ocr.pdf"
         ctx.ocr_to_pdf(src, tmp_pdf)
         text, n_pagine, meta, data = _classify_doc(src, ctx, tmp_pdf, conferma)
 
-        (ctx.base / "text" / f"{sha[:10]}_{src.stem}.txt").write_text(
+        ctx.text.mkdir(parents=True, exist_ok=True)
+        (ctx.text / f"{sha[:10]}_{src.stem}.txt").write_text(
             text, encoding="utf-8", errors="replace")
 
         dest_dir, name, status = _destinazione(ctx, meta, data)
@@ -132,7 +137,7 @@ def process_file(src: Path, ctx: Context, conferma=None) -> str:
         "testo_completo": text, "n_pagine": n_pagine,
         "confidenza": meta.get("confidenza", "bassa"), "sha256": sha,
     })
-    _log_rinomina(ctx.base, src.name, str(rel))
+    _log_rinomina(ctx.log_rinomine, src.name, str(rel))
     return status
 
 
@@ -141,6 +146,9 @@ def build_default_context() -> Context:
     from .classify import classify
     return Context(
         base=config.BASE,
+        archivio=config.ARCHIVIO, da_smistare=config.DA_SMISTARE,
+        originali=config.ORIGINALI, text=config.TEXT,
+        log_rinomine=config.LOG_RINOMINE,
         taxonomy=Taxonomy.load(config.CATEGORIE_YAML),
         db=Database(config.DB_PATH),
         ocr_to_pdf=ocr_to_pdf, extract_text=extract_text, classify=classify,

@@ -17,3 +17,7 @@ _DaSmistare/
 
 # kit di lancio personale, non pubblico
 LAUNCH_KIT.md
+
+# log temporanei di test
+_camp*.log
+_repro.log

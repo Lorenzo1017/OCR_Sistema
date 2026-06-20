@@ -3,12 +3,15 @@ from pathlib import Path
 
 import yaml
 
-# BASE = cartella dell'applicazione (questo file e' in _engine/ocrsys/config.py,
-# quindi parents[2] = la radice OCR_Sistema). Relativo al codice -> la cartella
-# si puo' SPOSTARE/COPIARE ovunque (anche su Windows/Linux) senza modifiche.
-# Override opzionale con la variabile d'ambiente OCR_SISTEMA_HOME.
-BASE = Path(os.environ.get("OCR_SISTEMA_HOME",
-                           Path(__file__).resolve().parents[2]))
+# SISTEMA = cartella che contiene il codice e i file di sistema (questo file e'
+# in <SISTEMA>/_engine/ocrsys/config.py -> parents[2] = SISTEMA).
+SISTEMA = Path(__file__).resolve().parents[2]
+# ROOT = dove vivono le cartelle utente (inbox/archivio/_DaSmistare). Se il
+# codice e' dentro una cartella chiamata "_Sistema" (layout riordinato), ROOT e'
+# il livello sopra; altrimenti (clone flat) ROOT == SISTEMA. Override con env.
+_root = SISTEMA.parent if SISTEMA.name == "_Sistema" else SISTEMA
+ROOT = Path(os.environ.get("OCR_SISTEMA_HOME", _root))
+BASE = ROOT   # compatibilita': percorsi archivio relativi a ROOT
 
 # Aggiunge le dir bin comuni al PATH: gli scheduler (launchd/systemd/Task
 # Scheduler) partono con PATH minimo e non troverebbero tesseract/ollama.
@@ -29,19 +32,20 @@ for _p in _extra:
         _cur = _cur + os.pathsep + _p
 os.environ["PATH"] = _cur
 
-INBOX = BASE / "inbox"
-ARCHIVIO = BASE / "archivio"
-ORIGINALI = BASE / "originali"
-TEXT = BASE / "text"
-DA_SMISTARE = BASE / "_DaSmistare"
-
+# cartelle utente (in primo piano, sotto ROOT)
+INBOX = ROOT / "inbox"
+ARCHIVIO = ROOT / "archivio"
+DA_SMISTARE = ROOT / "_DaSmistare"
 DA_SMISTARE_ERRORI = DA_SMISTARE / "_errori"   # quarantena file irrecuperabili
 
-CATEGORIE_YAML = BASE / "categorie.yaml"
-DB_PATH = BASE / "index.db"
-LOG_RINOMINE = BASE / "log_rinomine.csv"
-LOG_ERRORI = BASE / "log_errori.csv"
-LOCK_PATH = BASE / ".ocr.lock"                 # lock unico manuale+automatico
+# file/cartelle di sistema (dentro _Sistema quando riordinato)
+ORIGINALI = SISTEMA / "originali"
+TEXT = SISTEMA / "text"
+CATEGORIE_YAML = SISTEMA / "categorie.yaml"
+DB_PATH = SISTEMA / "index.db"
+LOG_RINOMINE = SISTEMA / "log_rinomine.csv"
+LOG_ERRORI = SISTEMA / "log_errori.csv"
+LOCK_PATH = SISTEMA / ".ocr.lock"              # lock unico manuale+automatico
 
 MAX_TENTATIVI = 3   # dopo N fallimenti su uno stesso file -> quarantena
 
@@ -66,7 +70,7 @@ def ensure_dirs():
         d.mkdir(parents=True, exist_ok=True)
 
 # Impostazioni opzionali editabili dall'utente (impostazioni.yaml).
-IMPOSTAZIONI_YAML = BASE / "impostazioni.yaml"
+IMPOSTAZIONI_YAML = SISTEMA / "impostazioni.yaml"
 
 
 def leggi_impostazioni(path) -> dict:
