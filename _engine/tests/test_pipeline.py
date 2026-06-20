@@ -66,6 +66,18 @@ def test_invalid_doc_routed_to_dasmistare(tmp_path):
     files = list((tmp_path / "_DaSmistare").glob("0000-00-00_*.pdf"))
     assert len(files) == 1
 
+def test_backup_disabilitato_niente_zip(tmp_path):
+    src = tmp_path / "scan.pdf"; src.write_text("x")
+    ctx = make_ctx(tmp_path, {
+        "valido": True, "data": "2024-03-15", "mittente": "Enel",
+        "tipo": "bolletta", "dettaglio": "gas",
+        "categoria": "Casa/Utenze/Gas", "confidenza": "alta",
+    })
+    ctx.backup_originali = False
+    process_file(src, ctx)
+    assert not (tmp_path / "originali" / "originali.zip").exists()
+    assert (tmp_path / "archivio/Casa/Utenze/Gas/2024-03-15_Enel_bolletta_gas.pdf").exists()
+
 def test_dry_run_non_tocca_nulla(tmp_path):
     # plan_file calcola la destinazione SENZA spostare/scrivere/indicizzare
     src = tmp_path / "scan.pdf"; src.write_text("x")

@@ -2,3 +2,7 @@
 # Lingue OCR per Tesseract: "ita", oppure "ita+eng" per documenti misti.
 # Richiede i language pack installati (es. tesseract-lang via Homebrew).
 ocr_lingue: ita
+
+# Salvare una copia degli originali in originali/originali.zip? (true/false)
+# false = NON tiene il backup (l'archivio e' gia' la copia catalogata).
+backup_originali: false

@@ -27,6 +27,7 @@ class Context:
     ocr_to_pdf: Callable
     extract_text: Callable
     classify: Callable
+    backup_originali: bool = True
 
 
 def _sha256(p: Path) -> str:
@@ -111,7 +112,8 @@ def process_file(src: Path, ctx: Context, conferma=None) -> str:
     # backup degli originali dentro un unico archivio zip. Nome interno univoco
     # per contenuto (prefisso sha) -> due scansioni diverse con lo stesso nome
     # (es. IMG_0001.pdf) non si sovrascrivono.
-    _backup_zip(ctx.originali, src, sha)
+    if ctx.backup_originali:
+        _backup_zip(ctx.originali, src, sha)
 
     with tempfile.TemporaryDirectory() as td:
         tmp_pdf = Path(td) / "ocr.pdf"
@@ -152,4 +154,5 @@ def build_default_context() -> Context:
         taxonomy=Taxonomy.load(config.CATEGORIE_YAML),
         db=Database(config.DB_PATH),
         ocr_to_pdf=ocr_to_pdf, extract_text=extract_text, classify=classify,
+        backup_originali=config.BACKUP_ORIGINALI,
     )

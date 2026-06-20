@@ -85,6 +85,13 @@ def leggi_impostazioni(path) -> dict:
     return {}
 
 
+_IMP = leggi_impostazioni(IMPOSTAZIONI_YAML)
+
 # Lingue OCR per Tesseract (es. "ita", "ita+eng"). Richiede i language pack
 # installati. Override in impostazioni.yaml -> ocr_lingue.
-OCR_LINGUE = str(leggi_impostazioni(IMPOSTAZIONI_YAML).get("ocr_lingue", "ita"))
+OCR_LINGUE = str(_IMP.get("ocr_lingue", "ita"))
+
+# Se True, salva una copia degli originali in _Sistema/originali/originali.zip.
+# Override in impostazioni.yaml -> backup_originali: false (l'archivio e' gia'
+# la copia catalogata; disattivandolo non si tiene l'originale pristino).
+BACKUP_ORIGINALI = bool(_IMP.get("backup_originali", True))
