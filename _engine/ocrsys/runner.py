@@ -141,9 +141,11 @@ def run_once(stampa=True, notifiche=True, dry_run=False, interattivo=False) -> s
 
     try:
         with SingleInstanceLock(config.LOCK_PATH):
+            # rglob: trova i documenti anche dentro eventuali sottocartelle
+            # (l'utente puo' organizzare le scansioni in cartelle dentro inbox).
             files = sorted(
-                p for p in config.INBOX.iterdir()
-                if p.suffix.lower() in config.INPUT_EXTS
+                p for p in config.INBOX.rglob("*")
+                if p.is_file() and p.suffix.lower() in config.INPUT_EXTS
             )
             if not files:
                 if stampa:

@@ -18,6 +18,9 @@ Schema richiesto:
 Regole:
 - "tags" = 2-5 parole chiave brevi minuscole (mittente, anno, tema, es. ["enel","gas","2024"]). Servono per la ricerca.
 - Ragiona prima sul MITTENTE e sul TIPO di documento, poi scegli la categoria piu' coerente.
+- "mittente" = chi EMETTE il documento (intestazione/logo in alto), NON un ente citato nel testo. Una fattura di un artigiano resta dell'artigiano, anche se nomina Agenzia Entrate o IVA.
+- Fisco-Tasse SOLO per documenti del fisco: Agenzia delle Entrate, cartelle esattoriali, F24, IMU, TARI. Tributi locali (TOSAP, consorzio di bonifica, tassa rifiuti tipo Ecoambiente) -> Fisco-Tasse/Tributi-Locali.
+- Una FATTURA di un'azienda o artigiano per lavori/servizi a casa (caldaia, cancello, impianto elettrico/idraulico, riparazioni) -> Casa/Manutenzione (NON Fisco).
 - "data" = data di emissione del documento (formato AAAA-MM-GG). Se non sicura, usa "".
 - "mittente" = chi emette (es. Enel, Agenzia delle Entrate, Vodafone). Breve.
 - "tipo" = natura (bolletta, fattura, referto, contratto, cartella, busta paga...).
@@ -32,6 +35,11 @@ Esempi (mittente -> categoria):
 - Ospedale/ASL/laboratorio analisi, referto -> Salute/Referti
 - Banca (Intesa, Unicredit...), estratto conto -> Banca-Finanze/EstrattiConto
 - Datore di lavoro, busta paga/cedolino -> Lavoro/BustePaga
+- Visura catastale, planimetria, cartella catasto fabbricati -> Casa/Catasto-Visure
+- Atto notarile, rogito, compravendita immobile -> Casa/Atti-Notarili
+- Mutuo (contratto, piano ammortamento, interessi) -> Casa/Affitto-Mutuo
+- Artigiano/ditta, fattura per caldaia/cancello/impianto/riparazione -> Casa/Manutenzione
+- Consorzio di bonifica, TOSAP, tassa rifiuti -> Fisco-Tasse/Tributi-Locali
 
 Testo OCR (primi caratteri):
 ---

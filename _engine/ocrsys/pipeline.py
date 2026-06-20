@@ -2,6 +2,7 @@ import csv
 import hashlib
 import shutil
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -27,6 +28,17 @@ def _sha256(p: Path) -> str:
     h = hashlib.sha256()
     h.update(p.read_bytes())
     return h.hexdigest()
+
+
+def _backup_zip(base: Path, src: Path, sha: str):
+    """Salva l'originale dentro originali/originali.zip (nome interno con
+    prefisso sha). Salta se gia' presente."""
+    zip_path = base / "originali" / "originali.zip"
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    arcname = f"{sha[:10]}_{src.name}"
+    with zipfile.ZipFile(zip_path, "a", zipfile.ZIP_DEFLATED) as z:
+        if arcname not in z.namelist():
+            z.write(src, arcname)
 
 
 def _log_rinomina(base: Path, originale: str, nuovo: str):
@@ -92,11 +104,10 @@ def process_file(src: Path, ctx: Context, conferma=None) -> str:
     if ctx.db.already_processed(sha):
         return "skip"
 
-    # backup univoco per contenuto: prefisso sha evita che due scansioni
-    # diverse con lo STESSO nome (es. IMG_0001.pdf) si sovrascrivano.
-    backup = ctx.base / "originali" / f"{sha[:10]}_{src.name}"
-    if not backup.exists():
-        shutil.copy2(src, backup)
+    # backup degli originali dentro un unico archivio zip. Nome interno univoco
+    # per contenuto (prefisso sha) -> due scansioni diverse con lo stesso nome
+    # (es. IMG_0001.pdf) non si sovrascrivono.
+    _backup_zip(ctx.base, src, sha)
 
     with tempfile.TemporaryDirectory() as td:
         tmp_pdf = Path(td) / "ocr.pdf"

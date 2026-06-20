@@ -8,12 +8,15 @@
 Casa:
   Utenze: [Gas, Luce, Acqua, Internet, Telefono]
   Affitto-Mutuo: []
+  Catasto-Visure: []
+  Atti-Notarili: []
   Condominio: []
   Manutenzione: []
 
 Fisco-Tasse:
   DichiarazioneRedditi: []
   IMU-TARI: []
+  Tributi-Locali: []
   F24: []
   CartelleEsattoriali: []
 
