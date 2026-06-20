@@ -1,5 +1,10 @@
 # 📂 OCR_Sistema
 
+![tests](https://github.com/Lorenzo1017/OCR_Sistema/actions/workflows/test.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
+![OS](https://img.shields.io/badge/OS-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)
+
 Catalogazione automatica di documenti scansionati, **100% locale e offline**.
 Butti le scansioni in una cartella; il sistema fa OCR, capisce di cosa si tratta
 con un modello LLM locale, **rinomina** ogni file con data e contenuto e lo
