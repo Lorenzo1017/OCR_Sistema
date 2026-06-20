@@ -8,6 +8,9 @@ BASE="$(cd "$ENGINE/.." && pwd)"
 OS="$(uname -s)"
 echo "==> OCR_Sistema in: $BASE   (OS: $OS)"
 
+# cartelle dati (gitignorate: assenti dopo un clone)
+for d in inbox archivio originali text _DaSmistare; do mkdir -p "$BASE/$d"; done
+
 # --- 1. Dipendenze di sistema ---
 if [ "$OS" = "Darwin" ]; then
   if ! command -v brew >/dev/null; then

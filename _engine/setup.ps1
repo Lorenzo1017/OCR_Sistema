@@ -6,6 +6,11 @@ $Engine = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Base   = Split-Path -Parent $Engine
 Write-Host "==> OCR_Sistema in: $Base"
 
+# cartelle dati (gitignorate: assenti dopo un clone)
+foreach ($d in @("inbox","archivio","originali","text","_DaSmistare")) {
+  New-Item -ItemType Directory -Force -Path (Join-Path $Base $d) | Out-Null
+}
+
 # --- 1. Dipendenze di sistema (una volta) ---
 Write-Host "==> Verifica tesseract / ocrmypdf / ollama nel PATH..."
 foreach ($t in @("tesseract","ocrmypdf","ollama")) {

@@ -129,6 +129,7 @@ def run_once(stampa=True, notifiche=True, dry_run=False, interattivo=False) -> s
     Sicuro da chiamare ripetutamente (idempotente, lock unico).
     dry_run: mostra solo cosa farebbe. interattivo: chiede conferma per file."""
     conferma = _conferma_interattiva if interattivo else None
+    config.ensure_dirs()   # crea le cartelle dati se mancano (clone fresco)
     problemi = preflight.check()
     if problemi:
         msg = "Ambiente non pronto: " + " | ".join(problemi)

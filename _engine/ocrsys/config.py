@@ -58,6 +58,13 @@ OCR_MIN_TEXT = 20
 
 INPUT_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif"}
 
+
+def ensure_dirs():
+    """Crea le cartelle dati se mancano (es. dopo un clone fresco da GitHub,
+    dove sono gitignorate). Idempotente."""
+    for d in (INBOX, ARCHIVIO, ORIGINALI, TEXT, DA_SMISTARE):
+        d.mkdir(parents=True, exist_ok=True)
+
 # Impostazioni opzionali editabili dall'utente (impostazioni.yaml).
 IMPOSTAZIONI_YAML = BASE / "impostazioni.yaml"
 
