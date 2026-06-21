@@ -40,6 +40,12 @@ Esempi (mittente -> categoria):
 - Mutuo (contratto, piano ammortamento, interessi) -> Casa/Affitto-Mutuo
 - Artigiano/ditta, fattura per caldaia/cancello/impianto/riparazione -> Casa/Manutenzione
 - Consorzio di bonifica, TOSAP, tassa rifiuti -> Fisco-Tasse/Tributi-Locali
+- Acquisto/garanzia smartphone, PC, TV, console -> Tecnologia/Dispositivi
+- Licenza o abbonamento software (Microsoft, Adobe, antivirus) -> Tecnologia/Software-Licenze
+- Prenotazione hotel/volo/treno, biglietti viaggio -> Viaggi/Prenotazioni o Viaggi/Biglietti
+- Abbonamento streaming/palestra/rivista (Netflix, Spotify...) -> Abbonamenti
+- Fattura mobili/arredo (IKEA, mobilifici) -> Casa/Arredamento
+- Garanzia/scontrino elettrodomestico (lavatrice, frigo, forno) -> Casa/Garanzie-Elettrodomestici
 
 Testo OCR (primi caratteri):
 ---

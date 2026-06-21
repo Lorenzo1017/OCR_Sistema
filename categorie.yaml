@@ -12,6 +12,21 @@ Casa:
   Atti-Notarili: []
   Condominio: []
   Manutenzione: []
+  Arredamento: []
+  Garanzie-Elettrodomestici: []
+
+Tecnologia:
+  Dispositivi: []
+  Software-Licenze: []
+  Garanzie: []
+  Assistenza-Riparazioni: []
+
+Viaggi:
+  Prenotazioni: []
+  Biglietti: []
+  Documenti: []
+
+Abbonamenti: []
 
 Fisco-Tasse:
   DichiarazioneRedditi: []
