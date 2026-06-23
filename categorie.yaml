@@ -16,6 +16,15 @@ Casa:
 Tecnologia:
   Dispositivi: []
   Software-Licenze: []
+  Progetti: []
+  Homelab-Server: []
+  Elettronica-Arduino: []
+
+Formazione:
+  Corsi: []
+  Libri-Riassunti: []
+  Lingue: []
+  Materiale-Studio: []
 
 Viaggi:
   Prenotazioni-Biglietti: []
@@ -84,7 +93,7 @@ PubblicaAmministrazione:
 
 TempoLibero:
   Sport-Hobby: []
-  Eventi-Corsi: []
+  Eventi: []
 
 Acquisti-Garanzie: []
 Ricevute-Scontrini: []

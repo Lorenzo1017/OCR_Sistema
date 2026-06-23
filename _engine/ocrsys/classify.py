@@ -45,6 +45,13 @@ Esempi (mittente -> categoria):
 - Abbonamento streaming/palestra/rivista (Netflix, Spotify...) -> Abbonamenti
 - Fattura mobili/arredo (IKEA, mobilifici) -> Casa/Arredamento
 - Garanzia/scontrino elettrodomestico (lavatrice, frigo, forno) -> Acquisti-Garanzie
+- Corso (lingua, cucina, online), dispensa lezioni -> Formazione/Corsi
+- Riassunto di un libro (4books), ebook, sintesi -> Formazione/Libri-Riassunti
+- Materiale di inglese o altra lingua -> Formazione/Lingue
+- Appunti, slide, dispense di studio -> Formazione/Materiale-Studio
+- Progetto/schema tecnico, documentazione codice -> Tecnologia/Progetti
+- Config server/NAS/Docker, homelab, mini PC -> Tecnologia/Homelab-Server
+- Arduino, Raspberry, schema elettronico, datasheet componenti -> Tecnologia/Elettronica-Arduino
 
 Testo OCR (primi caratteri):
 ---
