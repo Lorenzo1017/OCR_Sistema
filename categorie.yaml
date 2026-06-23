@@ -8,27 +8,18 @@
 Casa:
   Utenze: [Gas, Luce, Acqua, Internet, Telefono]
   Affitto-Mutuo: []
-  Catasto-Visure: []
-  Atti-Notarili: []
+  Catasto-Atti: []
   Condominio: []
   Manutenzione: []
   Arredamento: []
-  Garanzie-Elettrodomestici: []
-  Sicurezza-Allarme: []
-  Giardino-Esterni: []
-  Energia-Fotovoltaico: []
 
 Tecnologia:
   Dispositivi: []
   Software-Licenze: []
-  Garanzie: []
-  Assistenza-Riparazioni: []
 
 Viaggi:
-  Prenotazioni: []
-  Biglietti: []
+  Prenotazioni-Biglietti: []
   Documenti: []
-  Assicurazione-Viaggio: []
 
 Abbonamenti: []
 
@@ -38,13 +29,10 @@ Fisco-Tasse:
   Tributi-Locali: []
   F24: []
   CartelleEsattoriali: []
-  Detrazioni-Bonus: []
-  Canone-RAI: []
 
 Banca-Finanze:
   EstrattiConto: []
   Carte: []
-  Bonifici-Ricevute: []
   Investimenti: []
   Prestiti: []
   Previdenza-Pensione: []
@@ -54,17 +42,12 @@ Lavoro:
   Contratti: []
   CUD-CertificazioneUnica: []
   Contributi-INPS: []
-  Formazione-Corsi: []
-  Trasferte-Rimborsi: []
 
 Salute:
   Referti: []
   Ricette-Prescrizioni: []
   Fatture-Mediche: []
   Esami-Strumentali: []
-  Vaccinazioni: []
-  Dentista: []
-  Vista-Occhiali: []
   Certificati-Medici: []
 
 Veicoli:
@@ -73,49 +56,35 @@ Veicoli:
   Manutenzione: []
   Multe: []
   Patente: []
-  Revisione: []
-  Acquisto-Vendita: []
 
 Assicurazioni:
   Casa: []
   Vita: []
-  Infortuni: []
-  Sanitaria: []
   Altro: []
 
-Animali:
-  Veterinario: []
-  Documenti: []
+Animali: []
 
 Legale:
   Contratti: []
   Controversie-Cause: []
-  Procure-Deleghe: []
-  Sanzioni-Multe: []
 
 Documenti-Personali:
-  Identita: []
-  Patente-Passaporto: []
+  Identita-Patente-Passaporto: []
   CodiceFiscale-TesseraSanitaria: []
-  Residenza-Anagrafe: []
   Certificati: []
   Diplomi-Titoli: []
 
 Famiglia-Scuola:
-  Iscrizioni: []
-  Pagelle-Certificati: []
+  Iscrizioni-Pagelle: []
   Universita: []
-  Asilo-Nido: []
 
 PubblicaAmministrazione:
   Comune: []
-  Regione-Stato: []
   Corrispondenza-Raccomandate: []
 
 TempoLibero:
   Sport-Hobby: []
-  Eventi-Biglietti: []
-  Corsi: []
+  Eventi-Corsi: []
 
 Acquisti-Garanzie: []
 Ricevute-Scontrini: []
