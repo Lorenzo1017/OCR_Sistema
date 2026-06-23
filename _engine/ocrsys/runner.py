@@ -104,6 +104,20 @@ def _gestisci_errore(ctx, f, e, stampa):
                      f"{str(e)[:60]}")
 
 
+def _e_server_ollama(e) -> bool:
+    """True se l'errore indica un problema del SERVER Ollama (crash/500/conn),
+    non del singolo documento -> conviene interrompere il batch e ritentare,
+    non quarantenare file validi."""
+    s = str(e).lower()
+    return any(k in s for k in (
+        "500", "internal server error", "llama-server", "mtlcompiler",
+        "connection refused", "urlerror", "timed out", "max retries"))
+
+
+class _OllamaGiu(Exception):
+    pass
+
+
 def _process_seriale(ctx, files, stampa=True, conferma=None) -> str:
     ok = skip = dasmistare = errori = 0
     for i, f in enumerate(files, 1):
@@ -119,6 +133,9 @@ def _process_seriale(ctx, files, stampa=True, conferma=None) -> str:
                 dasmistare += 1; _say(stampa, "-> _DaSmistare")
             f.unlink()
         except Exception as e:
+            if _e_server_ollama(e):
+                _say(stampa, f"Ollama non risponde -> interrompo (riprovo dopo): {str(e)[:60]}")
+                break
             errori += 1
             _gestisci_errore(ctx, f, e, stampa)
     return f"OK:{ok}  DaSmistare:{dasmistare}  Saltati:{skip}  Errori:{errori}"
@@ -144,31 +161,36 @@ def _process_parallel(ctx, files, stampa=True) -> str:
 
     tot = len(nuovi); done = 0
     blocco = max(1, 2 * config.OCR_WORKERS)
-    for start in range(0, tot, blocco):
-        batch = nuovi[start:start + blocco]
-        risultati = []
-        with ThreadPoolExecutor(max_workers=config.OCR_WORKERS) as ex:
-            futs = {ex.submit(_ocr_to_job, f, sha, ctx): f for f, sha in batch}
-            for fut in as_completed(futs):
-                f = futs[fut]
+    try:
+        for start in range(0, tot, blocco):
+            batch = nuovi[start:start + blocco]
+            risultati = []
+            with ThreadPoolExecutor(max_workers=config.OCR_WORKERS) as ex:
+                futs = {ex.submit(_ocr_to_job, f, sha, ctx): f for f, sha in batch}
+                for fut in as_completed(futs):
+                    f = futs[fut]
+                    try:
+                        risultati.append((f, fut.result(), None))
+                    except Exception as e:
+                        risultati.append((f, None, e))
+            # commit seriale (Ollama + DB)
+            for f, job, ocr_err in risultati:
+                done += 1
+                if ocr_err is not None:
+                    errori += 1; _gestisci_errore(ctx, f, ocr_err, stampa); continue
                 try:
-                    risultati.append((f, fut.result(), None))
+                    status = _commit_job(job, ctx)
+                    if status == "ok": ok += 1
+                    else: dasmistare += 1
+                    try: f.unlink()
+                    except Exception: pass
+                    _say(stampa, f"[{done}/{tot}] {f.name} -> {status}")
                 except Exception as e:
-                    risultati.append((f, None, e))
-        # commit seriale (Ollama + DB)
-        for f, job, ocr_err in risultati:
-            done += 1
-            if ocr_err is not None:
-                errori += 1; _gestisci_errore(ctx, f, ocr_err, stampa); continue
-            try:
-                status = _commit_job(job, ctx)
-                if status == "ok": ok += 1
-                else: dasmistare += 1
-                try: f.unlink()
-                except Exception: pass
-                _say(stampa, f"[{done}/{tot}] {f.name} -> {status}")
-            except Exception as e:
-                errori += 1; _gestisci_errore(ctx, f, e, stampa)
+                    if _e_server_ollama(e):
+                        raise _OllamaGiu(str(e))
+                    errori += 1; _gestisci_errore(ctx, f, e, stampa)
+    except _OllamaGiu as og:
+        _say(stampa, f"Ollama non risponde -> interrompo (riprovo dopo): {str(og)[:60]}")
     return f"OK:{ok}  DaSmistare:{dasmistare}  Saltati:{skip}  Errori:{errori}"
 
 

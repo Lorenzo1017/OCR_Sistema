@@ -6,3 +6,7 @@ ocr_lingue: ita
 # Salvare una copia degli originali in originali/originali.zip? (true/false)
 # false = NON tiene il backup (l'archivio e' gia' la copia catalogata).
 backup_originali: false
+
+# Quanti documenti OCR-are in parallelo. 2 = sicuro su 16GB RAM (meno pressione
+# su Ollama/Metal). Alza con cautela se hai piu' RAM.
+ocr_workers: 2

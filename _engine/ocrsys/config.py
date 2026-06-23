@@ -55,7 +55,7 @@ OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 WATCH_INTERVAL = 900   # secondi tra un controllo inbox e il successivo (15 min)
 # keep_alive breve: il modello (~5GB) si scarica da solo poco dopo l'ultimo
 # uso OCR -> Ollama torna a riposo, RAM liberata.
-OLLAMA_KEEP_ALIVE = "30s"
+OLLAMA_KEEP_ALIVE = "5m"
 
 # Sotto questa lunghezza di testo OCR si ritenta con --force-ocr (F5).
 OCR_MIN_TEXT = 20
