@@ -14,6 +14,9 @@ Casa:
   Manutenzione: []
   Arredamento: []
   Garanzie-Elettrodomestici: []
+  Sicurezza-Allarme: []
+  Giardino-Esterni: []
+  Energia-Fotovoltaico: []
 
 Tecnologia:
   Dispositivi: []
@@ -25,6 +28,7 @@ Viaggi:
   Prenotazioni: []
   Biglietti: []
   Documenti: []
+  Assicurazione-Viaggio: []
 
 Abbonamenti: []
 
@@ -34,37 +38,84 @@ Fisco-Tasse:
   Tributi-Locali: []
   F24: []
   CartelleEsattoriali: []
+  Detrazioni-Bonus: []
+  Canone-RAI: []
 
 Banca-Finanze:
   EstrattiConto: []
+  Carte: []
+  Bonifici-Ricevute: []
   Investimenti: []
   Prestiti: []
+  Previdenza-Pensione: []
 
 Lavoro:
   BustePaga: []
   Contratti: []
   CUD-CertificazioneUnica: []
+  Contributi-INPS: []
+  Formazione-Corsi: []
+  Trasferte-Rimborsi: []
 
 Salute:
   Referti: []
   Ricette-Prescrizioni: []
   Fatture-Mediche: []
+  Esami-Strumentali: []
+  Vaccinazioni: []
+  Dentista: []
+  Vista-Occhiali: []
+  Certificati-Medici: []
 
 Veicoli:
   Assicurazione: []
   Bollo: []
   Manutenzione: []
   Multe: []
+  Patente: []
+  Revisione: []
+  Acquisto-Vendita: []
 
 Assicurazioni:
   Casa: []
   Vita: []
+  Infortuni: []
+  Sanitaria: []
   Altro: []
+
+Animali:
+  Veterinario: []
+  Documenti: []
+
+Legale:
+  Contratti: []
+  Controversie-Cause: []
+  Procure-Deleghe: []
+  Sanzioni-Multe: []
 
 Documenti-Personali:
   Identita: []
+  Patente-Passaporto: []
+  CodiceFiscale-TesseraSanitaria: []
+  Residenza-Anagrafe: []
   Certificati: []
   Diplomi-Titoli: []
 
+Famiglia-Scuola:
+  Iscrizioni: []
+  Pagelle-Certificati: []
+  Universita: []
+  Asilo-Nido: []
+
+PubblicaAmministrazione:
+  Comune: []
+  Regione-Stato: []
+  Corrispondenza-Raccomandate: []
+
+TempoLibero:
+  Sport-Hobby: []
+  Eventi-Biglietti: []
+  Corsi: []
+
 Acquisti-Garanzie: []
-Famiglia-Scuola: []
+Ricevute-Scontrini: []
