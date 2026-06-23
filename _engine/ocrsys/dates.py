@@ -1,3 +1,4 @@
+import datetime
 import re
 
 _MESI = {
@@ -19,8 +20,15 @@ def _norm_year(y: int) -> int:
     return 2000 + y if y <= 50 else 1900 + y
 
 
+def _anno_max() -> int:
+    # un documento non puo' essere del futuro (tolleranza 1 anno per post-datati)
+    return datetime.date.today().year + 1
+
+
 def _valid(g: int, m: int, a: int) -> bool:
-    return 1 <= g <= 31 and 1 <= m <= 12 and 1900 <= a <= 2100
+    # plausibilita': giorno/mese validi e anno tra 1970 e l'anno prossimo
+    # (scarta allucinazioni tipo 2079 o anni assurdi dall'OCR).
+    return 1 <= g <= 31 and 1 <= m <= 12 and 1970 <= a <= _anno_max()
 
 
 _ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")

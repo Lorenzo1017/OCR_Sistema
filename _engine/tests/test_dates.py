@@ -17,6 +17,14 @@ def test_normalize_empty_and_garbage():
 def test_normalize_invalid_iso_ranges():
     assert normalize_date("2024-13-40") is None
 
+def test_scarta_data_futura():
+    # un documento non puo' essere del 2079 (allucinazione OCR/LLM)
+    assert normalize_date("2079-03-15") is None
+    assert extract_date("Totale del 10/06/2079 euro") is None
+
+def test_accetta_data_plausibile_recente():
+    assert normalize_date("2024-03-15") == "2024-03-15"
+
 def test_anno_due_cifre_pivot_passato():
     # '98' deve essere 1998, non 2098
     assert extract_date("Documento del 10/06/98") == "1998-06-10"

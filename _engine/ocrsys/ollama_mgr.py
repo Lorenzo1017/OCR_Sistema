@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import signal
@@ -42,6 +43,45 @@ def ensure(timeout: int = 60):
             break
         time.sleep(1)
     return proc
+
+
+def restart(timeout: int = 40) -> bool:
+    """Riavvia Ollama da zero (kill totale + serve). Serve quando il model
+    runner crasha a meta' run (bug Metal 'Reentrancy avoided' / HTTP 500).
+    Ritorna True se torna su e RISPONDE a una generazione."""
+    if not shutil.which("ollama"):
+        return False
+    if _WIN:
+        subprocess.run(["taskkill", "/F", "/IM", "ollama.exe"],
+                       check=False, capture_output=True)
+    else:
+        subprocess.run(["pkill", "-9", "-f", "ollama"],
+                       check=False, capture_output=True)
+    time.sleep(2)
+    kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    if _WIN:
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+    subprocess.Popen(["ollama", "serve"], **kwargs)
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if is_up():
+            try:                       # serve up != modello ok: verifica generi
+                payload = json.dumps({
+                    "model": config.OLLAMA_MODEL, "prompt": "ok",
+                    "stream": False, "keep_alive": config.OLLAMA_KEEP_ALIVE,
+                }).encode()
+                req = urllib.request.Request(
+                    config.OLLAMA_URL, data=payload,
+                    headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    if not json.loads(r.read()).get("error"):
+                        return True
+            except OSError:
+                pass
+        time.sleep(2)
+    return False
 
 
 def stop_model():

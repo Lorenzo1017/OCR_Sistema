@@ -118,8 +118,33 @@ class _OllamaGiu(Exception):
     pass
 
 
+_MAX_RIAVVII = 2   # quante volte riavviare Ollama in un singolo run
+
+
+def _commit_con_recovery(job, ctx, stato, stampa):
+    """_commit_job con auto-restart di Ollama sui crash (Metal/500). Solleva
+    _OllamaGiu se Ollama non e' recuperabile -> il chiamante interrompe il run."""
+    try:
+        return _commit_job(job, ctx)
+    except Exception as e:
+        if not _e_server_ollama(e):
+            raise                                # errore per-file: gestiscilo tu
+        if stato["riavvii"] < _MAX_RIAVVII and ollama_mgr.restart():
+            stato["riavvii"] += 1
+            _say(stampa, f"Ollama crashato -> riavviato ({stato['riavvii']}/"
+                         f"{_MAX_RIAVVII}), ritento")
+            try:
+                return _commit_job(job, ctx)
+            except Exception as e2:
+                if _e_server_ollama(e2):
+                    raise _OllamaGiu(str(e2))
+                raise
+        raise _OllamaGiu(str(e))
+
+
 def _process_seriale(ctx, files, stampa=True, conferma=None) -> str:
     ok = skip = dasmistare = errori = 0
+    stato = {"riavvii": 0}
     for i, f in enumerate(files, 1):
         if stampa:
             print(f"[{i}/{len(files)}] {f.name} ... ", end="", flush=True)
@@ -134,7 +159,11 @@ def _process_seriale(ctx, files, stampa=True, conferma=None) -> str:
             f.unlink()
         except Exception as e:
             if _e_server_ollama(e):
-                _say(stampa, f"Ollama non risponde -> interrompo (riprovo dopo): {str(e)[:60]}")
+                if stato["riavvii"] < _MAX_RIAVVII and ollama_mgr.restart():
+                    stato["riavvii"] += 1
+                    _say(stampa, f"Ollama riavviato ({stato['riavvii']}), continuo")
+                    continue            # file resta in inbox, riprocessato dopo
+                _say(stampa, f"Ollama giu' -> interrompo (riprovo dopo): {str(e)[:50]}")
                 break
             errori += 1
             _gestisci_errore(ctx, f, e, stampa)
@@ -161,6 +190,7 @@ def _process_parallel(ctx, files, stampa=True) -> str:
 
     tot = len(nuovi); done = 0
     blocco = max(1, 2 * config.OCR_WORKERS)
+    stato = {"riavvii": 0}
     try:
         for start in range(0, tot, blocco):
             batch = nuovi[start:start + blocco]
@@ -179,15 +209,15 @@ def _process_parallel(ctx, files, stampa=True) -> str:
                 if ocr_err is not None:
                     errori += 1; _gestisci_errore(ctx, f, ocr_err, stampa); continue
                 try:
-                    status = _commit_job(job, ctx)
+                    status = _commit_con_recovery(job, ctx, stato, stampa)
                     if status == "ok": ok += 1
                     else: dasmistare += 1
                     try: f.unlink()
                     except Exception: pass
                     _say(stampa, f"[{done}/{tot}] {f.name} -> {status}")
+                except _OllamaGiu:
+                    raise
                 except Exception as e:
-                    if _e_server_ollama(e):
-                        raise _OllamaGiu(str(e))
                     errori += 1; _gestisci_errore(ctx, f, e, stampa)
     except _OllamaGiu as og:
         _say(stampa, f"Ollama non risponde -> interrompo (riprovo dopo): {str(og)[:60]}")
