@@ -52,6 +52,9 @@ Esempi (mittente -> categoria):
 - Progetto/schema tecnico, documentazione codice -> Tecnologia/Progetti
 - Config server/NAS/Docker, homelab, mini PC -> Tecnologia/Homelab-Server
 - Arduino, Raspberry, schema elettronico, datasheet componenti -> Tecnologia/Elettronica-Arduino
+- Bitcoin, crypto, Satoshi, wallet, exchange -> Banca-Finanze/Crypto
+- Fattura gasolio da riscaldamento (es. Romanin Petroli) -> Casa/Utenze/Gasolio
+- Libro/manuale tecnico o di studio (Tanenbaum, Raspberry, ricettario) -> Formazione/Libri-Riassunti
 
 Testo OCR (primi caratteri):
 ---

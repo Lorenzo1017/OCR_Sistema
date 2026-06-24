@@ -6,7 +6,7 @@
 # your own documents/language.
 
 Casa:
-  Utenze: [Gas, Luce, Acqua, Internet, Telefono]
+  Utenze: [Gas, Luce, Acqua, Internet, Telefono, Gasolio]
   Affitto-Mutuo: []
   Catasto-Atti: []
   Condominio: []
@@ -43,6 +43,7 @@ Banca-Finanze:
   EstrattiConto: []
   Carte: []
   Investimenti: []
+  Crypto: []
   Prestiti: []
   Previdenza-Pensione: []
 
