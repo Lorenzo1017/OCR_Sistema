@@ -84,11 +84,16 @@ def restart(timeout: int = 40) -> bool:
     return False
 
 
-def stop_model():
-    """Scarica il modello dalla RAM (~5GB liberati) -> Ollama a riposo."""
-    if shutil.which("ollama"):
-        subprocess.run(["ollama", "stop", config.OLLAMA_MODEL],
+def stop_modello(nome: str):
+    """Scarica dalla RAM un modello specifico (per nome)."""
+    if nome and shutil.which("ollama"):
+        subprocess.run(["ollama", "stop", nome],
                        check=False, capture_output=True)
+
+
+def stop_model():
+    """Scarica il modello text dalla RAM (~5GB liberati) -> Ollama a riposo."""
+    stop_modello(config.OLLAMA_MODEL)
 
 
 def stop_server(proc):

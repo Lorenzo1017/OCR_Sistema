@@ -122,6 +122,34 @@ class Database:
         )
         return [dict(r) for r in cur.fetchall()]
 
+    def aggiorna_per_sha(self, sha256: str, **campi):
+        """Aggiorna le colonne indicate per il documento con quel sha."""
+        if not campi:
+            return
+        sets = ", ".join(f"{k} = ?" for k in campi)
+        self.conn.execute(
+            f"UPDATE documenti SET {sets} WHERE sha256 = ?",
+            (*campi.values(), sha256))
+        self.conn.commit()
+
+    def rebuild_fts(self):
+        """Ricostruisce l'indice FTS dai dati attuali (dopo aggiornamenti)."""
+        self.conn.executescript("""
+            DROP TRIGGER IF EXISTS doc_ai;
+            DROP TABLE IF EXISTS documenti_fts;
+            CREATE VIRTUAL TABLE documenti_fts USING fts5(
+                mittente, tipo, tags, testo_completo,
+                content='documenti', content_rowid='id');
+            INSERT INTO documenti_fts(rowid, mittente, tipo, tags, testo_completo)
+                SELECT id, mittente, tipo, COALESCE(tags,''), testo_completo
+                FROM documenti;
+            CREATE TRIGGER doc_ai AFTER INSERT ON documenti BEGIN
+                INSERT INTO documenti_fts(rowid, mittente, tipo, tags, testo_completo)
+                VALUES (new.id, new.mittente, new.tipo, new.tags, new.testo_completo);
+            END;
+        """)
+        self.conn.commit()
+
     def close(self):
         try:
             self.conn.close()

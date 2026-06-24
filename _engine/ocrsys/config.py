@@ -50,6 +50,7 @@ LOCK_PATH = SISTEMA / ".ocr.lock"              # lock unico manuale+automatico
 MAX_TENTATIVI = 3   # dopo N fallimenti su uno stesso file -> quarantena
 
 OLLAMA_MODEL = "qwen2.5:7b"
+OLLAMA_VISION_MODEL = "qwen2.5vl:7b"   # fallback OCR vision (legge l'immagine)
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 WATCH_INTERVAL = 900   # secondi tra un controllo inbox e il successivo (15 min)
