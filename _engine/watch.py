@@ -9,13 +9,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from ocrsys import config
+from ocrsys import config, email_fetch
 from ocrsys.runner import run_once
 
 
 def main():
     while True:
         try:
+            # scarica prima gli allegati PDF dalle email etichettate (no-op se
+            # non configurato), poi processa la inbox come sempre.
+            email_fetch.scarica(stampa=False)
             # niente stampa (gira in background); le notifiche avvisano l'utente
             run_once(stampa=False, notifiche=True)
         except Exception as e:

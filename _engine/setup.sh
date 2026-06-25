@@ -108,6 +108,7 @@ if ! grep -q "alias ocr-processa" "$RC" 2>/dev/null; then
 alias ocr-processa='"$PY" "$ENGINE/ocr_processa.py"'
 alias ocr-cerca='"$PY" "$ENGINE/ocr_cerca.py"'
 alias ocr-check='"$PY" "$ENGINE/check.py"'
+alias ocr-scarica-email='"$PY" "$ENGINE/scarica_email.py"'
 EOF
 fi
 

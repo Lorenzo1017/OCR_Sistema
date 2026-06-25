@@ -1,0 +1,11 @@
+# Copia questo file in ".email.yaml" (stessa cartella) e compila.
+# Poi: chmod 600 .email.yaml
+attivo: true
+email: tuoindirizzo@gmail.com
+# Password per app Google (NON la password normale). Crea su:
+# https://myaccount.google.com/apppasswords  (richiede verifica 2 passaggi)
+app_password: "xxxx xxxx xxxx xxxx"
+# Etichetta Gmail da monitorare: applica l'etichetta Add_OCR alle email i cui
+# allegati PDF vuoi archiviare. Creala in Gmail prima.
+etichetta: Add_OCR
+imap_host: imap.gmail.com
