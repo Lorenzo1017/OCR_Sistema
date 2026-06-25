@@ -21,3 +21,8 @@ LAUNCH_KIT.md
 # log temporanei di test
 _camp*.log
 _repro.log
+
+# log runtime e artefatti personali
+*.log
+.download_completo
+download_drive.sh

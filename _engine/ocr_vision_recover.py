@@ -68,13 +68,20 @@ def _run(dry_run: bool):
                 name = resolve_collision(dest_dir, name)
                 shutil.move(str(f), str(dest_dir / name))
                 relpath = str((dest_dir / name).relative_to(config.BASE))
-                db.aggiorna_per_sha(
-                    sha, nome_file=name, percorso=relpath,
+                campi = dict(
+                    nome_file=name, percorso=relpath,
                     categoria=meta["categoria"],
                     data_documento=data or "0000-00-00",
                     mittente=meta.get("mittente", ""), tipo=meta.get("tipo", ""),
                     tags=" ".join(meta.get("tags") or []),
                     testo_completo=meta.get("testo", ""))
+                # I file image-only finiti in _DaSmistare non hanno una riga in
+                # DB (la pipeline non li indicizza): UPDATE non troverebbe nulla
+                # e resterebbero invisibili alla ricerca -> inserisci se assenti.
+                if db.already_processed(sha):
+                    db.aggiorna_per_sha(sha, **campi)
+                else:
+                    db.insert({**campi, "sha256": sha, "confidenza": "vision"})
                 recuperati += 1
             except Exception as e:
                 print(f"[{i}/{len(files)}] {f.name[:40]} ERRORE: {str(e)[:50]}")

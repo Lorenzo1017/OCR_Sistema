@@ -32,10 +32,13 @@ def disponibile() -> bool:
     return shutil.which("pdftoppm") is not None
 
 
-def _render(pdf: Path, out_dir: Path, pagine: int = 2, dpi: int = 150) -> list:
+def _render(pdf: Path, out_dir: Path, pagine: int = 2, lato_max: int = 2000) -> list:
+    # -scale-to limita il lato lungo a `lato_max` px: scansioni ad alta
+    # risoluzione producono PNG da diversi MB che Ollama rifiuta (HTTP 400).
+    # Cosi' l'immagine resta leggibile ma il payload contenuto.
     subprocess.run(
-        ["pdftoppm", "-png", "-f", "1", "-l", str(pagine), "-r", str(dpi),
-         str(pdf), str(out_dir / "pag")],
+        ["pdftoppm", "-png", "-f", "1", "-l", str(pagine),
+         "-scale-to", str(lato_max), str(pdf), str(out_dir / "pag")],
         check=True, capture_output=True,
     )
     return sorted(out_dir.glob("pag*.png"))
@@ -46,7 +49,10 @@ def _call(prompt: str, imgs_b64: list) -> str:
         "model": config.OLLAMA_VISION_MODEL, "prompt": prompt,
         "images": imgs_b64, "stream": False, "format": "json",
         "keep_alive": config.OLLAMA_KEEP_ALIVE,
-        "options": {"temperature": 0},
+        # num_ctx alto: 2 immagini + prompt sforano il default 4096 -> il JSON
+        # di risposta verrebbe troncato a meta' (output invalido). 8192 lascia
+        # spazio sia alle immagini sia alla risposta completa.
+        "options": {"temperature": 0, "num_ctx": 8192},
     }).encode()
     req = urllib.request.Request(
         config.OLLAMA_URL, data=payload,
@@ -63,11 +69,11 @@ def classifica(pdf: Path, taxonomy, mittenti_noti=None) -> dict:
         if not imgs:
             return {"valido": False, "testo": ""}
         b64 = [base64.b64encode(p.read_bytes()).decode() for p in imgs[:2]]
-        mitt = ""
-        if mittenti_noti:
-            mitt = "\nMittenti gia' visti: " + ", ".join(mittenti_noti[:50]) + "\n"
+        # NB: NON iniettiamo la lista mittenti noti (a differenza del modello
+        # text): col vision legge il mittente direttamente dall'immagine, e la
+        # lista gonfierebbe il context riducendo lo spazio per la risposta.
         prompt = _PROMPT.format(
-            categorie="\n".join(sorted(taxonomy.valid_paths())), mittenti=mitt)
+            categorie="\n".join(sorted(taxonomy.valid_paths())), mittenti="")
         raw = _call(prompt, b64)
     r = parse_response(raw, taxonomy)
     try:
