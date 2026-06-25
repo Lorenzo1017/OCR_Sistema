@@ -1,7 +1,9 @@
 """Scarica in inbox gli allegati PDF delle email Gmail con una certa etichetta,
 da quando la funzione e' stata attivata in poi. Gira headless (lo chiama il
-daemon a ogni giro). Non modifica la casella: la deduplica e' su Message-ID
-salvati in uno stato locale.
+daemon a ogni giro e un timer 4x/giorno). Non modifica la casella.
+Deduplica a tre livelli, niente documenti doppi: per Message-ID (stato locale),
+per contenuto sha256 contro l'archivio (DB) e contro i PDF gia' in inbox; un
+lock evita download concorrenti tra le due routine.
 
 Configurazione: _Sistema/.email.yaml (gitignorato, chmod 600):
     attivo: true
@@ -11,6 +13,7 @@ Configurazione: _Sistema/.email.yaml (gitignorato, chmod 600):
     imap_host: imap.gmail.com              # opzionale
 """
 import email
+import hashlib
 import imaplib
 import json
 import re
@@ -21,6 +24,8 @@ from pathlib import Path
 import yaml
 
 from . import config
+from .db import Database
+from .locking import AlreadyRunning, SingleInstanceLock
 
 _MESI = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -102,13 +107,47 @@ def _pdf_allegati(msg) -> list:
     return out
 
 
+def _sha_bytes(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
+
+def _sha_file(p: Path) -> str:
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for c in iter(lambda: f.read(65536), b""):
+            h.update(c)
+    return h.hexdigest()
+
+
+def _shas_inbox() -> set:
+    """sha dei PDF gia' in attesa in inbox (non ancora processati)."""
+    s = set()
+    for p in config.INBOX.glob("*"):
+        if p.is_file() and p.suffix.lower() == ".pdf":
+            try:
+                s.add(_sha_file(p))
+            except OSError:
+                pass
+    return s
+
+
 def scarica(stampa: bool = False) -> int:
     """Scarica i PDF delle email etichettate (da data attivazione in poi) in
     inbox. Ritorna quanti file salvati. Silenzioso/robusto: se non configurato
-    o se la rete e' giu', ritorna 0 senza sollevare (il daemon non deve morire)."""
+    o se la rete e' giu', ritorna 0 senza sollevare (il daemon non deve morire).
+    Un lock evita che le due routine (timer 4x/giorno e daemon) scarichino in
+    contemporanea."""
     cfg = _leggi_config()
     if not cfg.get("attivo") or not cfg.get("email") or not cfg.get("app_password"):
         return 0
+    try:
+        with SingleInstanceLock(config.EMAIL_LOCK):
+            return _esegui(cfg, stampa)
+    except AlreadyRunning:
+        return 0   # un altro fetch e' gia' in corso: salta, niente doppioni
+
+
+def _esegui(cfg: dict, stampa: bool) -> int:
     etichetta = str(cfg.get("etichetta", "Add_OCR"))
     host = str(cfg.get("imap_host", "imap.gmail.com"))
 
@@ -125,6 +164,11 @@ def scarica(stampa: bool = False) -> int:
     visti = set(stato.get("visti", []))
 
     config.ensure_dirs()
+    # deduplica per CONTENUTO: salta gli allegati gia' archiviati (DB) o gia' in
+    # attesa in inbox -> mai un documento doppio, anche se la stessa mail/PDF
+    # arriva due volte o viene rietichettata.
+    db = Database(config.DB_PATH)
+    shas_noti = _shas_inbox()
     salvati = 0
     imap = None
     try:
@@ -148,8 +192,12 @@ def scarica(stampa: bool = False) -> int:
             if mid and mid in visti:
                 continue
             for nome, payload in _pdf_allegati(msg):
+                sha = _sha_bytes(payload)
+                if sha in shas_noti or db.already_processed(sha):
+                    continue   # gia' in inbox o gia' archiviato -> no doppione
                 dest = _nome_libero(config.INBOX, nome)
                 dest.write_bytes(payload)
+                shas_noti.add(sha)
                 salvati += 1
                 if stampa:
                     print(f"email -> inbox/{dest.name}")
@@ -162,6 +210,7 @@ def scarica(stampa: bool = False) -> int:
             print(f"Fetch email saltato: {str(e)[:80]}")
         return salvati
     finally:
+        db.close()
         if imap is not None:
             try:
                 imap.logout()

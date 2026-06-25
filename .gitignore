@@ -30,3 +30,4 @@ download_drive.sh
 # credenziali e stato fetch email (mai versionare)
 .email.yaml
 .email_stato.json
+.email.lock

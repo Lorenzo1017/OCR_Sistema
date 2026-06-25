@@ -39,3 +39,16 @@ def test_scarica_no_op_senza_config(tmp_path, monkeypatch):
     # senza file di configurazione la funzione non fa nulla e ritorna 0
     monkeypatch.setattr(email_fetch.config, "EMAIL_CONFIG", tmp_path / "manca.yaml")
     assert email_fetch.scarica() == 0
+
+
+def test_sha_bytes_deterministico():
+    assert email_fetch._sha_bytes(b"abc") == email_fetch._sha_bytes(b"abc")
+    assert email_fetch._sha_bytes(b"abc") != email_fetch._sha_bytes(b"abd")
+
+
+def test_shas_inbox_legge_solo_pdf(tmp_path, monkeypatch):
+    monkeypatch.setattr(email_fetch.config, "INBOX", tmp_path)
+    (tmp_path / "a.pdf").write_bytes(b"contenuto")
+    (tmp_path / "b.txt").write_bytes(b"ignora")
+    shas = email_fetch._shas_inbox()
+    assert shas == {email_fetch._sha_bytes(b"contenuto")}
