@@ -236,6 +236,31 @@ def _say(stampa, msg):
         print(msg)
 
 
+def _prune_dirs_vuote(root) -> int:
+    """Rimuove le sottocartelle VUOTE sotto root (dal basso verso l'alto), cosi'
+    quando i PDF sono stati processati e spostati non restano cartelle vuote in
+    inbox. Una cartella con solo '.DS_Store' (creato da macOS) e' trattata come
+    vuota. Le cartelle che contengono ancora file (es. .zip, non elaborabili)
+    restano. root stessa non viene mai rimossa."""
+    rimosse = 0
+    # ordine: prima le piu' profonde, cosi' un genitore puo' diventare vuoto a
+    # sua volta e venire rimosso nello stesso giro.
+    for d in sorted((p for p in root.rglob("*") if p.is_dir()),
+                    key=lambda p: len(p.parts), reverse=True):
+        ds = d / ".DS_Store"
+        try:
+            if ds.exists() and not any(p.name != ".DS_Store" for p in d.iterdir()):
+                ds.unlink()
+        except OSError:
+            pass
+        try:
+            d.rmdir()            # riesce solo se la cartella e' vuota
+            rimosse += 1
+        except OSError:
+            pass                 # non vuota: la lascio
+    return rimosse
+
+
 def run_once(stampa=True, notifiche=True, dry_run=False, interattivo=False) -> str:
     """Un giro completo: preflight -> lock -> (se inbox non vuota) avvia Ollama,
     notifica, processa, scarica modello, notifica esito. Ritorna un riepilogo.
@@ -296,6 +321,10 @@ def run_once(stampa=True, notifiche=True, dry_run=False, interattivo=False) -> s
                 ctx.db.close()                # chiude la connessione SQLite
                 ollama_mgr.stop_model()       # libera RAM modello
                 ollama_mgr.stop_server(proc)  # ferma server se avviato da noi
+
+            if not dry_run:
+                # i PDF spostati lasciano cartelle vuote in inbox: rimuovile
+                _prune_dirs_vuote(config.INBOX)
 
             if stampa:
                 print(f"\nFatto. {riepilogo}")
