@@ -1,6 +1,8 @@
 """Controlla la coerenza tra l'indice (DB) e i file in archivio.
 Uso: python verifica_db.py [--fix]
-  --fix  rimuove dal DB le righe orfane (file non piu' presenti)."""
+  --fix  riconcilia: rimuove le righe orfane (file mancante) E indicizza i file
+         in archivio non ancora nel DB (metadati dedotti dal nome/percorso)."""
+import hashlib
 import sys
 from pathlib import Path
 
@@ -8,6 +10,31 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from ocrsys import config
 from ocrsys.db import Database
+
+
+def _sha(p: Path) -> str:
+    h = hashlib.sha256()
+    with open(p, "rb") as fh:
+        for c in iter(lambda: fh.read(65536), b""):
+            h.update(c)
+    return h.hexdigest()
+
+
+def _indicizza(db: Database, p: Path) -> bool:
+    """Inserisce nel DB un file di archivio non indicizzato, deducendo i
+    metadati dal nome AAAA-MM-GG_Mittente_Tipo_Dettaglio e dalla categoria
+    (cartelle sotto archivio/). Ritorna True se inserito."""
+    cat = str(p.parent.relative_to(config.ARCHIVIO))
+    parti = p.stem.split("_")
+    data = parti[0] if parti and len(parti[0]) == 10 and parti[0][4] == "-" else "0000-00-00"
+    mitt = parti[1].replace("-", " ") if len(parti) > 1 else ""
+    tipo = parti[2] if len(parti) > 2 else ""
+    det = " ".join(parti[3:]).replace("-", " ") if len(parti) > 3 else ""
+    return db.insert({
+        "nome_file": p.name, "percorso": str(p.relative_to(config.BASE)),
+        "categoria": cat, "data_documento": data, "mittente": mitt,
+        "tipo": tipo, "tags": "", "testo_completo": det, "n_pagine": 0,
+        "confidenza": "reindex", "sha256": _sha(p)})
 
 
 def main():
@@ -37,15 +64,23 @@ def main():
     for p in non_indicizzati[:15]:
         print(f"   [?] {p.relative_to(config.BASE)}")
 
-    if "--fix" in sys.argv and orfani:
-        d.conn.executemany("DELETE FROM documenti WHERE id = ?",
-                            [(i,) for i, _ in orfani])
-        d.conn.commit()
-        print(f"\nRimosse {len(orfani)} righe orfane dal DB.")
-    elif orfani:
-        print("\n(usa --fix per rimuovere le righe orfane)")
-    if not orfani and not non_indicizzati:
-        print("\nTutto coerente.")
+    if "--fix" in sys.argv:
+        if orfani:
+            d.conn.executemany("DELETE FROM documenti WHERE id = ?",
+                                [(i,) for i, _ in orfani])
+            d.conn.commit()
+            print(f"\nRimosse {len(orfani)} righe orfane dal DB.")
+        aggiunti = sum(1 for p in non_indicizzati if _indicizza(d, p))
+        if aggiunti:
+            d.rebuild_fts()
+            print(f"Indicizzati {aggiunti} file che mancavano nel DB.")
+        if not orfani and not aggiunti:
+            print("\nNiente da correggere.")
+    else:
+        if orfani or non_indicizzati:
+            print("\n(usa --fix per riconciliare: pulire orfane + indicizzare mancanti)")
+        else:
+            print("\nTutto coerente.")
     d.close()
 
 

@@ -1,8 +1,9 @@
+import shutil
 import subprocess
 from pathlib import Path
 from pypdf import PdfReader
 from . import config
-from .config import OCR_MIN_TEXT
+from .config import OCR_MIN_TEXT, TESTO_NATIVO_MIN
 
 # Flag comuni: lingua/e configurabile/i (impostazioni.yaml -> ocr_lingue),
 # raddrizza scansioni storte, ruota pagine capovolte.
@@ -42,22 +43,34 @@ def _quick_text(pdf: Path) -> str:
 def ocr_to_pdf(src: Path, out_pdf: Path) -> None:
     """OCR di src -> PDF cercabile in out_pdf. src puo' essere PDF o immagine.
 
-    Strategia robusta (F5):
-    - prima passa con --skip-text (OCR solo pagine senza testo): veloce, ideale
-      per scansioni immagine pure;
-    - se il testo risulta troppo scarso (PDF con layer di testo sporco gia'
-      presente, saltato da --skip-text) o se ocrmypdf fallisce, ritenta con
-      --force-ocr che ri-OCR tutto da zero.
+    Strategia robusta:
+    - se il PDF ha gia' un buon layer di testo (firmato digitalmente, PEC,
+      export nativo), lo si usa cosi' com'e': niente OCR (ocrmypdf rifiuta i
+      firmati con DigitalSignatureError) e molto piu' veloce;
+    - altrimenti --skip-text (OCR solo pagine senza testo), ideale per scansioni;
+    - se il testo risulta troppo scarso o ocrmypdf fallisce, ritenta con
+      --force-ocr che ri-OCR tutto da zero;
+    - se anche il force-ocr fallisce ma un po' di testo nativo c'era, si usa
+      quello (meglio che perdere il documento in quarantena).
     """
     out_pdf.parent.mkdir(parents=True, exist_ok=True)
+    nativo = _quick_text(src).strip() if src.suffix.lower() == ".pdf" else ""
+    if len(nativo) >= TESTO_NATIVO_MIN:
+        shutil.copyfile(str(src), str(out_pdf))
+        return
     try:
         _run(src, out_pdf, "--skip-text")
         if len(_quick_text(out_pdf).strip()) >= OCR_MIN_TEXT:
             return
     except subprocess.CalledProcessError:
         pass
-    # fallback: ri-OCR completo
-    _run(src, out_pdf, "--force-ocr")
+    try:
+        _run(src, out_pdf, "--force-ocr")
+    except subprocess.CalledProcessError:
+        if nativo:                      # firmato senza layer immagine OCR-abile
+            shutil.copyfile(str(src), str(out_pdf))
+        else:
+            raise
 
 
 def extract_text(pdf: Path):

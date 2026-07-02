@@ -64,6 +64,11 @@ OLLAMA_KEEP_ALIVE = "5m"
 # Sotto questa lunghezza di testo OCR si ritenta con --force-ocr (F5).
 OCR_MIN_TEXT = 20
 
+# Se il PDF ha gia' almeno questo testo estraibile (firmati digitalmente, PEC,
+# export nativi), si usa direttamente SENZA OCR: ocrmypdf rifiuterebbe i firmati
+# (DigitalSignatureError) e per i nativi l'OCR e' inutile e piu' lento.
+TESTO_NATIVO_MIN = 100
+
 INPUT_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif"}
 
 

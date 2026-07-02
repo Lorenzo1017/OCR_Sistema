@@ -109,6 +109,10 @@ alias ocr-processa='"$PY" "$ENGINE/ocr_processa.py"'
 alias ocr-cerca='"$PY" "$ENGINE/ocr_cerca.py"'
 alias ocr-check='"$PY" "$ENGINE/check.py"'
 alias ocr-scarica-email='"$PY" "$ENGINE/scarica_email.py"'
+alias ocr-stato='"$PY" "$ENGINE/stato.py"'
+alias ocr-sposta='"$PY" "$ENGINE/sposta.py"'
+alias ocr-recupera='"$PY" "$ENGINE/recupera_quarantena.py"'
+alias ocr-check-db='"$PY" "$ENGINE/verifica_db.py"'
 EOF
 fi
 

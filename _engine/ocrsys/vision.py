@@ -23,8 +23,11 @@ Categorie ammesse (scegli ESATTAMENTE una di queste stringhe):
 Schema:
 {{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","tags":["..."],"confidenza":"alta|media|bassa","testo":"trascrizione del testo principale"}}
 
-Regole: "mittente"=chi emette; categoria DEVE essere una delle ammesse, se nessuna
-calza usa ""; "testo"=trascrivi il contenuto leggibile (per la ricerca).
+Regole: "data"=la data del documento (cercala con attenzione: data di emissione,
+protocollo, fattura, referto o intestazione; convertila SEMPRE in AAAA-MM-GG; se
+proprio non c'e' usa ""); "mittente"=chi emette; categoria DEVE essere una delle
+ammesse, se nessuna calza usa ""; "testo"=trascrivi il contenuto leggibile
+(includi la data se la vedi, serve per la ricerca).
 JSON:"""
 
 
