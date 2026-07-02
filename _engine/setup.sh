@@ -113,6 +113,8 @@ alias ocr-stato='"$PY" "$ENGINE/stato.py"'
 alias ocr-sposta='"$PY" "$ENGINE/sposta.py"'
 alias ocr-recupera='"$PY" "$ENGINE/recupera_quarantena.py"'
 alias ocr-check-db='"$PY" "$ENGINE/verifica_db.py"'
+alias ocr-esporta='"$PY" "$ENGINE/esporta.py"'
+alias ocr-web='open http://localhost:8077'
 EOF
 fi
 
