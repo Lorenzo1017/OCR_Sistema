@@ -38,6 +38,29 @@ def build_name(data, mittente, tipo, dettaglio) -> str:
     return name
 
 
+_ANNO = re.compile(r"^(19|20)\d{2}$")
+
+
+def dir_categoria(archivio: Path, categoria: str, data, per_anno) -> Path:
+    """Cartella di destinazione per una categoria: se la categoria e' nella
+    lista per_anno e la data e' valida, aggiunge la sottocartella <AAAA>."""
+    base = archivio / categoria
+    if categoria in (per_anno or []) and data and _ISO_DATE.match(data or ""):
+        anno = data[:4]
+        if anno != "0000":
+            return base / anno
+    return base
+
+
+def strip_anno(categoria: str) -> str:
+    """Toglie l'eventuale componente-anno finale da un percorso categoria
+    dedotto dalle cartelle ('Salute/Referti/2024' -> 'Salute/Referti')."""
+    parti = categoria.split("/")
+    if parti and _ANNO.match(parti[-1]):
+        return "/".join(parti[:-1])
+    return categoria
+
+
 def resolve_collision(folder: Path, name: str) -> str:
     target = folder / name
     if not target.exists():

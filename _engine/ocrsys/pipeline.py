@@ -10,7 +10,7 @@ from typing import Callable
 from . import config
 from .db import Database
 from .dates import extract_date, normalize_date
-from .naming import build_name, resolve_collision
+from .naming import build_name, dir_categoria, resolve_collision
 from .taxonomy import Taxonomy
 
 
@@ -124,7 +124,9 @@ def _commit_job(job: dict, ctx, conferma=None) -> str:
 def _destinazione(ctx, meta, data):
     """Ritorna (dest_dir, name, status) in base alla validità della classifica."""
     if meta.get("valido") and ctx.taxonomy.is_valid(meta["categoria"]):
-        dest_dir = ctx.archivio / meta["categoria"]
+        # per le categorie configurate, archivia in sottocartella per anno
+        dest_dir = dir_categoria(ctx.archivio, meta["categoria"], data,
+                                 config.CATEGORIE_PER_ANNO)
         name = build_name(data, meta["mittente"], meta["tipo"], meta["dettaglio"])
         status = "ok"
     else:

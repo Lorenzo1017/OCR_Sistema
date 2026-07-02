@@ -105,6 +105,13 @@ OCR_LINGUE = str(_IMP.get("ocr_lingue", "ita"))
 # Override in impostazioni.yaml -> ocr_workers.
 OCR_WORKERS = int(_IMP.get("ocr_workers", max(1, min(4, (os.cpu_count() or 4) - 2))))
 
+# Categorie archiviate in sottocartelle per ANNO (dalla data del documento):
+# archivio/<categoria>/<AAAA>/file.pdf. L'LLM non le vede: sceglie solo la
+# categoria, l'anno lo aggiunge il sistema. Senza data -> radice categoria.
+# Override in impostazioni.yaml -> categorie_per_anno: [...]
+_cpa = _IMP.get("categorie_per_anno", ["Salute/Referti"])
+CATEGORIE_PER_ANNO = [str(c).strip("/") for c in _cpa] if isinstance(_cpa, list) else []
+
 # Se True, salva una copia degli originali in _Sistema/originali/originali.zip.
 # Override in impostazioni.yaml -> backup_originali: false (l'archivio e' gia'
 # la copia catalogata; disattivandolo non si tiene l'originale pristino).

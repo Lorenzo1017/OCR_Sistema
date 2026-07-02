@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from ocrsys import config
 from ocrsys.db import Database
+from ocrsys.naming import strip_anno
 
 
 def _sha(p: Path) -> str:
@@ -24,7 +25,7 @@ def _indicizza(db: Database, p: Path) -> bool:
     """Inserisce nel DB un file di archivio non indicizzato, deducendo i
     metadati dal nome AAAA-MM-GG_Mittente_Tipo_Dettaglio e dalla categoria
     (cartelle sotto archivio/). Ritorna True se inserito."""
-    cat = str(p.parent.relative_to(config.ARCHIVIO))
+    cat = strip_anno(str(p.parent.relative_to(config.ARCHIVIO)))
     parti = p.stem.split("_")
     data = parti[0] if parti and len(parti[0]) == 10 and parti[0][4] == "-" else "0000-00-00"
     mitt = parti[1].replace("-", " ") if len(parti) > 1 else ""

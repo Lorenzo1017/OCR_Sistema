@@ -18,7 +18,7 @@ from ocrsys import config, ollama_mgr, vision
 from ocrsys.locking import SingleInstanceLock, AlreadyRunning
 from ocrsys.db import Database
 from ocrsys.taxonomy import Taxonomy
-from ocrsys.naming import build_name, resolve_collision
+from ocrsys.naming import build_name, dir_categoria, resolve_collision
 from ocrsys.dates import normalize_date
 
 
@@ -57,8 +57,9 @@ def _run(dry_run: bool):
                 data = normalize_date(meta.get("data"))
                 name = build_name(data, meta["mittente"], meta["tipo"],
                                   meta["dettaglio"])
-                dest_dir = config.ARCHIVIO / meta["categoria"]
-                rel = f"archivio/{meta['categoria']}/{name}"
+                dest_dir = dir_categoria(config.ARCHIVIO, meta["categoria"],
+                                         data, config.CATEGORIE_PER_ANNO)
+                rel = str(dest_dir.relative_to(config.BASE) / name)
                 print(f"[{i}/{len(files)}] {f.name[:40]} -> {rel}")
                 if dry_run:
                     recuperati += 1

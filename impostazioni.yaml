@@ -10,3 +10,6 @@ backup_originali: false
 # Quanti documenti OCR-are in parallelo. 2 = sicuro su 16GB RAM (meno pressione
 # su Ollama/Metal). Alza con cautela se hai piu' RAM.
 ocr_workers: 2
+# categorie archiviate in sottocartelle per anno (dalla data del documento)
+categorie_per_anno:
+  - Salute/Referti
