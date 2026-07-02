@@ -115,6 +115,8 @@ alias ocr-recupera='"$PY" "$ENGINE/recupera_quarantena.py"'
 alias ocr-check-db='"$PY" "$ENGINE/verifica_db.py"'
 alias ocr-esporta='"$PY" "$ENGINE/esporta.py"'
 alias ocr-web='open http://localhost:8077'
+alias ocr-indicizza='"$PY" "$ENGINE/indicizza_semantica.py"'
+alias ocr-arricchisci='"$PY" "$ENGINE/arricchisci.py"'
 EOF
 fi
 

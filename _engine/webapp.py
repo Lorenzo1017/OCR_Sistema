@@ -1,5 +1,6 @@
 """Web UI locale dell'archivio OCR: ricerca full-text, sfoglia per categoria,
-statistiche, download CSV/ZIP. SOLA LETTURA sul DB. Solo localhost.
+statistiche, download CSV/ZIP, correzione documenti (categoria/data/mittente/
+tags). Solo localhost.
 
 Avvio manuale:  ocr-web        (http://localhost:8077)
 Automatico:     LaunchAgent com.ocrsistema.web
@@ -13,8 +14,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 from flask import (Flask, abort, redirect, render_template_string, request,
                    send_file, url_for)
 
-from ocrsys import config, export
+from ocrsys import config, export, semantic
 from ocrsys.db import Database
+from ocrsys.dates import normalize_date
+from ocrsys.naming import dir_categoria, resolve_collision
+from ocrsys.taxonomy import Taxonomy
 
 PORT = 8077
 app = Flask(__name__)
@@ -58,7 +62,8 @@ _BASE_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
 
 _RIGA = """<tr><td>{data}</td><td>{mitt}</td><td>{tipo}</td>
 <td><a class="mut" href="/sfoglia?cat={cat}">{cat}</a></td>
-<td><a class="doc" href="/pdf/{id}" target="_blank">{nome}</a><br>{tags}</td></tr>"""
+<td><a class="doc" href="/pdf/{id}" target="_blank">{nome}</a>
+ <a class="mut" href="/doc/{id}" title="modifica">&#9998;</a><br>{tags}</td></tr>"""
 
 
 def _tabella(righe) -> str:
@@ -83,15 +88,25 @@ def _pagina(vista, corpo):
 @app.route("/")
 def home():
     q = request.args.get("q", "").strip()
+    sem = request.args.get("sem", "") == "1"
     db = _db()
     try:
         corpo = [f"""<form class="cerca" action="/">
           <input type="text" name="q" value="{q}" placeholder="Cerca nei documenti (es. mutuo 2024, referto sangue)..." autofocus>
+          <label class="mut" style="align-self:center;white-space:nowrap">
+            <input type="checkbox" name="sem" value="1" {"checked" if sem else ""}> semantica</label>
           <button>Cerca</button></form>"""]
         if q:
-            ris = db.search(q)
-            corpo.append(f"<p class='mut'>{len(ris)} risultati per «{q}»"
-                         + (f" — <a href='/zip/cerca?q={q}'>scarica ZIP</a>" if ris else "")
+            if sem:
+                ris = semantic.cerca(db, q)
+                nota = " (per significato)" if ris else \
+                       " — indice semantico vuoto? esegui ocr-indicizza"
+            else:
+                ris = db.search(q)
+                nota = ""
+            corpo.append(f"<p class='mut'>{len(ris)} risultati per «{q}»{nota}"
+                         + (f" — <a href='/zip/cerca?q={q}'>scarica ZIP</a>"
+                            if ris and not sem else "")
                          + "</p>")
             corpo.append(_tabella(ris))
         else:
@@ -158,6 +173,74 @@ def stats():
         </div>
         <div class="card"><h3>Categorie principali</h3>{barre}</div>"""
         return _pagina("stats", corpo)
+    finally:
+        db.close()
+
+
+@app.route("/doc/<int:doc_id>", methods=["GET", "POST"])
+def doc_dettaglio(doc_id):
+    """Scheda del documento con modifica di categoria/data/mittente/tipo/tags.
+    La modifica di categoria sposta anche il file (rispettando le sottocartelle
+    per anno) e riallinea DB + indice di ricerca."""
+    tax = Taxonomy.load(config.CATEGORIE_YAML)
+    db = _db()
+    try:
+        r = db.conn.execute("SELECT * FROM documenti WHERE id=?",
+                            (doc_id,)).fetchone()
+        if not r:
+            abort(404)
+        r = dict(r)
+        msg = ""
+        if request.method == "POST":
+            nuova_cat = request.form.get("categoria", r["categoria"]).strip("/")
+            nuova_data = request.form.get("data", "").strip()
+            campi = {
+                "mittente": request.form.get("mittente", "").strip(),
+                "tipo": request.form.get("tipo", "").strip(),
+                "tags": " ".join(request.form.get("tags", "").split()),
+            }
+            if nuova_data:
+                nd = normalize_date(nuova_data)
+                if nd:
+                    campi["data_documento"] = nd
+                else:
+                    msg = "Data non valida (usa AAAA-MM-GG): non salvata. "
+            if nuova_cat != r["categoria"] and tax.is_valid(nuova_cat):
+                src = config.BASE / r["percorso"]
+                if src.exists():
+                    dd = dir_categoria(config.ARCHIVIO, nuova_cat,
+                                       campi.get("data_documento",
+                                                 r["data_documento"]),
+                                       config.CATEGORIE_PER_ANNO)
+                    dd.mkdir(parents=True, exist_ok=True)
+                    nuovo = resolve_collision(dd, r["nome_file"])
+                    src.rename(dd / nuovo)
+                    campi["categoria"] = nuova_cat
+                    campi["nome_file"] = nuovo
+                    campi["percorso"] = str((dd / nuovo).relative_to(config.BASE))
+            db.aggiorna_per_sha(r["sha256"], **campi)
+            db.rebuild_fts()     # gli UPDATE non passano dai trigger FTS
+            r = dict(db.conn.execute("SELECT * FROM documenti WHERE id=?",
+                                     (doc_id,)).fetchone())
+            msg += "Salvato."
+        opzioni = "".join(
+            f"<option {'selected' if c == r['categoria'] else ''}>{c}</option>"
+            for c in sorted(tax.valid_paths()))
+        corpo = f"""
+        <p><a href="javascript:history.back()">&larr; indietro</a></p>
+        <div class="card"><h2>{r['nome_file']}</h2>
+        <p class="mut">{r['percorso']} — <a class="doc" href="/pdf/{doc_id}"
+           target="_blank">apri PDF</a></p>
+        {"<p><b>" + msg + "</b></p>" if msg else ""}
+        <form method="post">
+          <p>Categoria<br><select name="categoria" style="width:100%;padding:.4rem">{opzioni}</select></p>
+          <p>Data (AAAA-MM-GG)<br><input type="text" name="data" value="{r['data_documento']}"></p>
+          <p>Mittente<br><input type="text" name="mittente" value="{r['mittente'] or ''}"></p>
+          <p>Tipo<br><input type="text" name="tipo" value="{r['tipo'] or ''}"></p>
+          <p>Tags (separati da spazio)<br><input type="text" name="tags" value="{r['tags'] or ''}"></p>
+          <button>Salva</button>
+        </form></div>"""
+        return _pagina("cerca", corpo)
     finally:
         db.close()
 
