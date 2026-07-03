@@ -1,10 +1,27 @@
 # Project summary — OCR_Sistema
 
-**Version 1.0** · June 2026 · Lorenzo Chieregato · MIT license
+**Version 1.2** · July 2026 · Lorenzo Chieregato · MIT license
 
 A system for the automatic filing of scanned documents, **100% local and offline**.
 Put your scans in a folder; the system runs OCR, classifies them with a local LLM,
 renames them, and sorts them into topic folders on its own.
+
+---
+
+## What's new in 1.2
+
+- **Native-text PDFs** (digitally signed, PEC, born-digital) are filed using their
+  existing text instead of failing OCR — recovers previously quarantined documents.
+- **Vision fallback** (`qwen2.5vl`) for image-only scans; the text and vision
+  models are never loaded in RAM at the same time.
+- **Email intake**: PDF attachments of Gmail messages labelled `Add_OCR` are pulled
+  into `inbox/` automatically (IMAP, content-dedup, 4×/day).
+- **Semantic search** with local embeddings (`nomic-embed-text`), alongside FTS.
+- **Local web UI** on `http://localhost:8077`: search, browse, stats, edit, export.
+- **Exports** (`ocr-esporta`): CSV catalog, ZIP by category/search, full backup.
+- **Per-year subfolders** for high-volume categories (e.g. `Salute/Referti/2025`).
+- **Housekeeping**: empty inbox subfolders pruned, log rotation, DB↔files reconcile,
+  metadata enrichment pass (`ocr-arricchisci`).
 
 ---
 

@@ -29,19 +29,34 @@ inbox/scanned_bill.pdf
 
 ## Features
 - **Offline & private**: OCR (Tesseract) + local LLM (Ollama + Qwen2.5) — zero cloud.
-- **Automatic**: a watcher checks `inbox/` every 15 minutes and processes on its own.
+- **Automatic**: a watcher checks `inbox/` every 15 minutes and processes on its own;
+  empty leftover subfolders are pruned automatically.
 - **Meaningful renaming**: `YYYY-MM-DD_Sender_Type_Detail.pdf`.
-- **Topic sorting**: configurable category tree (`categorie.yaml`).
-- **Safe**: originals are always kept; uncertain documents go to `_DaSmistare/`
-  (never filed at random); operations are reversible; full-text search (SQLite FTS5).
+- **Topic sorting**: configurable category tree (`categorie.yaml`); high-volume
+  categories can auto-split into per-year subfolders (`categorie_per_anno`).
+- **Native-text aware**: digitally-signed / born-digital PDFs (PEC, contracts) are
+  used as-is without re-OCR — no more `DigitalSignatureError` quarantine.
+- **Vision fallback**: image-only scans Tesseract can't read are classified by a
+  local vision model (`qwen2.5vl`); the text and vision models never share RAM.
+- **Email intake**: PDF attachments of Gmail messages you label `Add_OCR` are
+  pulled into `inbox/` automatically (IMAP, dedup, 4×/day + on the daemon cycle).
+- **Search**: full-text (SQLite FTS5) **and** semantic (local `nomic-embed-text`
+  embeddings) — find "spese dentista" even if the document says "odontoiatra".
+- **Local web UI** (`http://localhost:8077`): search, browse by category, stats,
+  edit a document's category/date/sender/tags, download CSV/ZIP.
+- **Exports**: full catalog to CSV, ZIP by category or by search, full backup.
+- **Safe**: uncertain documents go to `_DaSmistare/` (never filed at random);
+  duplicates are detected by content hash; operations are reversible.
 - **Cross-platform**: macOS, Linux, Windows, with native notifications.
-- **Ollama at rest**: the model (~5GB) is unloaded from RAM when idle.
+- **Ollama at rest**: models (~5GB) are unloaded from RAM when idle.
 
 ## Requirements
 - Python 3.9+
 - [Tesseract](https://github.com/tesseract-ocr/tesseract) (Italian language data),
   [OCRmyPDF](https://ocrmypdf.readthedocs.io/), [Ollama](https://ollama.com) +
   the `qwen2.5:7b` model
+- Optional: `poppler` (pdftoppm) + `qwen2.5vl:7b` for the **vision** fallback;
+  `nomic-embed-text` for **semantic** search — all local
 - RAM: 8GB minimum, 16GB recommended · Disk: ≥10GB free
 
 ## Installation
@@ -55,12 +70,26 @@ The setup checks your **hardware**, installs every component (including the loca
 LLM model) and configures automatic startup (LaunchAgent / systemd / Task Scheduler).
 
 ## Usage
-1. Put your documents (PDFs or images) into `inbox/`.
+1. Put your documents (PDFs or images) into `inbox/` — or label Gmail messages
+   `Add_OCR` (see `.email.yaml.esempio`), or scan straight into `inbox/`.
 2. Within 15 minutes they are processed and sorted into `archivio/`.
 3. Check `_DaSmistare/` for the few uncertain documents.
 
-Commands: `ocr-check` (hardware/component diagnostics), `ocr-processa` (run a
-pass now), `ocr-cerca "words"` (full-text search).
+### Commands
+| Command | What it does |
+|---|---|
+| `ocr-processa` | run a pass now (`--dry-run`, `--interactive`) |
+| `ocr-cerca "words"` | full-text search · `--semantica` for meaning-based |
+| `ocr-web` | open the local web UI (`http://localhost:8077`) |
+| `ocr-stato` | archive health: volumes, metadata quality, categories |
+| `ocr-sposta "name" "Cat/Sub"` | re-file a document (fixes file + DB + index) |
+| `ocr-esporta indice\|categoria\|cerca\|backup` | CSV / ZIP / full backup |
+| `ocr-arricchisci` | LLM pass to fill missing tags/sender |
+| `ocr-indicizza` | (re)build the semantic index |
+| `ocr-vision-recover` | classify image-only scans with the vision model |
+| `ocr-recupera` | reprocess the quarantine (`_DaSmistare/_errori`) |
+| `ocr-check` / `ocr-check-db --fix` | diagnostics · DB↔files reconcile |
+| `ocr-scarica-email` | fetch labelled Gmail PDFs now |
 
 More details and portability: see [README_PORTABILITA.md](README_PORTABILITA.md),
 [GUIDA.md](GUIDA.md), [CHECKLIST.md](CHECKLIST.md).
@@ -72,10 +101,15 @@ cd _engine && .venv/bin/python -m pytest tests/ -q
 
 ## Architecture
 - `_engine/ocrsys/` — modules (config, ocr, classify, pipeline, runner, db,
-  taxonomy, dates, naming, locking, notify, ollama_mgr, hardware, preflight)
-- `_engine/watch.py` — cross-OS daemon · `_engine/ocr_processa.py` / `ocr_cerca.py`
-  / `check.py` — commands
-- data (gitignored): `inbox/ archivio/ originali/ text/ _DaSmistare/`
+  taxonomy, dates, naming, locking, notify, ollama_mgr, hardware, preflight,
+  vision, email_fetch, semantic, export)
+- `_engine/watch.py` — cross-OS daemon · `webapp.py` — local web UI ·
+  command entry points: `ocr_processa.py`, `ocr_cerca.py`, `stato.py`, `sposta.py`,
+  `esporta.py`, `arricchisci.py`, `indicizza_semantica.py`, `ocr_vision_recover.py`,
+  `recupera_quarantena.py`, `scarica_email.py`, `verifica_db.py`, `check.py`
+- background jobs (macOS LaunchAgents): `com.ocrsistema.watch` (OCR loop),
+  `com.ocrsistema.email` (4×/day intake), `com.ocrsistema.web` (web UI)
+- data (gitignored): `inbox/ archivio/ _DaSmistare/`; system files under `_Sistema/`
 
 ## Contributing
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
