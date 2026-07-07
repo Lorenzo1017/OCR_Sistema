@@ -36,3 +36,7 @@ esportazioni/
 # sqlite WAL sidecar
 *.db-wal
 *.db-shm
+
+# integrazione paperless esterna (non parte del progetto)
+.paperless_stage/
+.paperless_uploaded_md5.txt

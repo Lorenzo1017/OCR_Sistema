@@ -47,6 +47,11 @@ inbox/scanned_bill.pdf
 - **Exports**: full catalog to CSV, ZIP by category or by search, full backup.
 - **Safe**: uncertain documents go to `_DaSmistare/` (never filed at random);
   duplicates are detected by content hash; operations are reversible.
+- **Hardened web UI**: HTML-escaped output (no XSS from document content),
+  CSRF-protected edits, restrictive CSP, localhost-only.
+- **Reliable storage**: SQLite in WAL mode (safe concurrent read/write), nightly
+  maintenance job — consistent DB backup (rotated), DB↔files reconcile, semantic
+  reindex of new documents.
 - **Cross-platform**: macOS, Linux, Windows, with native notifications.
 - **Ollama at rest**: models (~5GB) are unloaded from RAM when idle.
 
