@@ -27,8 +27,18 @@ CREATE TABLE IF NOT EXISTS errori (
 
 class Database:
     def __init__(self, path: Path):
-        self.conn = sqlite3.connect(str(path))
+        # timeout: se un altro processo sta scrivendo, aspetta invece di
+        # sollevare subito "database is locked" (daemon + web + comandi CLI).
+        self.conn = sqlite3.connect(str(path), timeout=15)
         self.conn.row_factory = sqlite3.Row
+        # WAL: i lettori (web UI) non vengono bloccati dallo scrittore (daemon)
+        # e viceversa -> niente piu' "database is locked" in uso concorrente.
+        try:
+            self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.execute("PRAGMA synchronous=NORMAL")
+            self.conn.execute("PRAGMA busy_timeout=15000")
+        except sqlite3.Error:
+            pass
         self.conn.executescript(_SCHEMA)
         self._migrate()
         self.conn.commit()

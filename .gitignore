@@ -32,3 +32,7 @@ download_drive.sh
 .email_stato.json
 .email.lock
 esportazioni/
+
+# sqlite WAL sidecar
+*.db-wal
+*.db-shm
