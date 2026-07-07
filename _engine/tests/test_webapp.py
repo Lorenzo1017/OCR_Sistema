@@ -24,6 +24,13 @@ def client(tmp_path, monkeypatch):
                "mittente": "Enel", "tipo": "bolletta", "tags": "luce",
                "testo_completo": "bolletta della luce di febbraio",
                "n_pagine": 1, "confidenza": "alta", "sha256": "s1"})
+    # documento "ostile": mittente con payload XSS (come da PDF malevolo)
+    db.insert({"nome_file": "cattivo.pdf", "percorso": "archivio/Casa/cattivo.pdf",
+               "categoria": "Casa", "data_documento": "2024-01-01",
+               "mittente": "<script>alert(1)</script>", "tipo": "x",
+               "tags": "<img src=x onerror=alert(2)>",
+               "testo_completo": "hacktext unica", "n_pagine": 1,
+               "confidenza": "alta", "sha256": "s2"})
     db.close()
     cat_yaml = tmp_path / "categorie.yaml"
     cat_yaml.write_text("Casa: []\nSalute:\n  Referti: []\n")
@@ -122,3 +129,39 @@ def test_doc_data_invalida_non_salvata(client):
                                     "mittente": "Enel", "tipo": "bolletta",
                                     "tags": ""})
     assert b"Data non valida" in r.data
+
+
+# --- sicurezza ---
+
+def test_no_xss_nei_risultati(client):
+    # il mittente ostile NON deve comparire come tag <script> eseguibile
+    r = client.get("/?q=hacktext")
+    assert b"<script>alert(1)</script>" not in r.data
+    assert b"&lt;script&gt;" in r.data            # escapato
+    assert b"<img src=x" not in r.data            # nessun tag <img> grezzo
+
+
+def test_no_xss_query_riflessa(client):
+    r = client.get("/?q=<script>alert(3)</script>")
+    assert b"<script>alert(3)</script>" not in r.data
+
+
+def test_header_sicurezza(client):
+    r = client.get("/")
+    assert r.headers.get("X-Frame-Options") == "DENY"
+    assert "script-src 'none'" in r.headers.get("Content-Security-Policy", "")
+    assert r.headers.get("X-Content-Type-Options") == "nosniff"
+
+
+def test_csrf_post_da_origine_esterna_bloccata(client):
+    r = client.post("/doc/1", data={"categoria": "Casa", "data": "2023-02-02",
+                                    "mittente": "X", "tipo": "y", "tags": ""},
+                    headers={"Origin": "http://evil.example"})
+    assert r.status_code == 403
+
+
+def test_csrf_post_stessa_origine_ok(client):
+    r = client.post("/doc/1", data={"categoria": "Casa", "data": "2023-02-02",
+                                    "mittente": "X", "tipo": "y", "tags": ""},
+                    headers={"Origin": "http://127.0.0.1:8077"})
+    assert r.status_code == 200 and b"Salvato" in r.data

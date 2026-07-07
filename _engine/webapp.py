@@ -8,11 +8,13 @@ Automatico:     LaunchAgent com.ocrsistema.web
 import os
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from flask import (Flask, abort, redirect, render_template_string, request,
                    send_file, url_for)
+from markupsafe import escape
 
 from ocrsys import config, export, semantic
 from ocrsys.db import Database
@@ -26,6 +28,39 @@ app = Flask(__name__)
 
 def _db() -> Database:
     return Database(config.DB_PATH)
+
+
+def _h(v) -> str:
+    """Escape per contesto HTML: i metadati vengono da OCR/LLM (contenuto non
+    fidato) -> mai inseriti grezzi nell'HTML, altrimenti XSS."""
+    return str(escape("" if v is None else v))
+
+
+def _u(v) -> str:
+    """Encode per contesto URL/query-string (link con categoria o query)."""
+    return quote("" if v is None else str(v), safe="")
+
+
+@app.after_request
+def _sicurezza(resp):
+    # nessun embedding cross-site + CSP restrittiva: la UI e' self-contained
+    # (niente script inline: tutto server-rendered), quindi vietiamo ogni script.
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'; "
+        "img-src 'self'; frame-ancestors 'none'")
+    return resp
+
+
+def _stessa_origine() -> bool:
+    """Difesa CSRF per le POST: accetta solo richieste che arrivano dalla UI
+    stessa (Origin/Referer su 127.0.0.1). Un sito esterno non puo' impostarli."""
+    orig = request.headers.get("Origin") or request.headers.get("Referer") or ""
+    if not orig:
+        return True   # curl/CLI senza browser: non e' un attacco cross-site
+    return orig.startswith(f"http://127.0.0.1:{PORT}") or \
+        orig.startswith(f"http://localhost:{PORT}")
 
 
 _BASE_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
@@ -61,7 +96,7 @@ _BASE_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
 </header><main>{{ corpo|safe }}</main></body></html>"""
 
 _RIGA = """<tr><td>{data}</td><td>{mitt}</td><td>{tipo}</td>
-<td><a class="mut" href="/sfoglia?cat={cat}">{cat}</a></td>
+<td><a class="mut" href="/sfoglia?cat={cat_u}">{cat}</a></td>
 <td><a class="doc" href="/pdf/{id}" target="_blank">{nome}</a>
  <a class="mut" href="/doc/{id}" title="modifica">&#9998;</a><br>{tags}</td></tr>"""
 
@@ -72,11 +107,12 @@ def _tabella(righe) -> str:
     out = ["<table><tr><th>Data</th><th>Mittente</th><th>Tipo</th>"
            "<th>Categoria</th><th>Documento</th></tr>"]
     for r in righe:
-        tags = "".join(f"<span class='tag'>{t}</span>"
+        tags = "".join(f"<span class='tag'>{_h(t)}</span>"
                        for t in (r["tags"] or "").split() if t)
         out.append(_RIGA.format(
-            id=r["id"], data=r["data_documento"], mitt=r["mittente"],
-            tipo=r["tipo"], cat=r["categoria"], nome=r["nome_file"], tags=tags))
+            id=int(r["id"]), data=_h(r["data_documento"]), mitt=_h(r["mittente"]),
+            tipo=_h(r["tipo"]), cat=_h(r["categoria"]), cat_u=_u(r["categoria"]),
+            nome=_h(r["nome_file"]), tags=tags))
     out.append("</table>")
     return "".join(out)
 
@@ -92,7 +128,7 @@ def home():
     db = _db()
     try:
         corpo = [f"""<form class="cerca" action="/">
-          <input type="text" name="q" value="{q}" placeholder="Cerca nei documenti (es. mutuo 2024, referto sangue)..." autofocus>
+          <input type="text" name="q" value="{_h(q)}" placeholder="Cerca nei documenti (es. mutuo 2024, referto sangue)..." autofocus>
           <label class="mut" style="align-self:center;white-space:nowrap">
             <input type="checkbox" name="sem" value="1" {"checked" if sem else ""}> semantica</label>
           <button>Cerca</button></form>"""]
@@ -104,8 +140,8 @@ def home():
             else:
                 ris = db.search(q)
                 nota = ""
-            corpo.append(f"<p class='mut'>{len(ris)} risultati per «{q}»{nota}"
-                         + (f" — <a href='/zip/cerca?q={q}'>scarica ZIP</a>"
+            corpo.append(f"<p class='mut'>{len(ris)} risultati per «{_h(q)}»{nota}"
+                         + (f" — <a href='/zip/cerca?q={_u(q)}'>scarica ZIP</a>"
                             if ris and not sem else "")
                          + "</p>")
             corpo.append(_tabella(ris))
@@ -129,15 +165,15 @@ def sfoglia():
                 "SELECT * FROM documenti WHERE categoria=? "
                 "ORDER BY data_documento DESC", (cat,))]
             corpo = (f"<p><a href='/sfoglia'>&larr; tutte le categorie</a></p>"
-                     f"<h2>{cat} <span class='n'>({len(righe)})</span> "
-                     f"— <a href='/zip/categoria?cat={cat}'>scarica ZIP</a></h2>"
+                     f"<h2>{_h(cat)} <span class='n'>({len(righe)})</span> "
+                     f"— <a href='/zip/categoria?cat={_u(cat)}'>scarica ZIP</a></h2>"
                      + _tabella(righe))
         else:
             cats = db.conn.execute(
                 "SELECT categoria, COUNT(*) n FROM documenti "
                 "GROUP BY categoria ORDER BY categoria").fetchall()
             voci = "".join(
-                f"<li><a class='doc' href='/sfoglia?cat={c}'>{c}</a> "
+                f"<li><a class='doc' href='/sfoglia?cat={_u(c)}'>{_h(c)}</a> "
                 f"<span class='n'>({n})</span></li>" for c, n in cats)
             corpo = f"<h2>Categorie</h2><ul class='albero'>{voci}</ul>"
         return _pagina("sfoglia", corpo)
@@ -160,7 +196,7 @@ def stats():
                         "GROUP BY categoria ORDER BY n DESC LIMIT 12").fetchall()
         massimo = top[0][1] if top else 1
         barre = "".join(
-            f"<div style='margin:.2rem 0'><span class='mut'>{cat}</span><br>"
+            f"<div style='margin:.2rem 0'><span class='mut'>{_h(cat)}</span><br>"
             f"<div style='background:#a8a29e;height:14px;border-radius:4px;"
             f"width:{max(3, 100*n//massimo)}%'></div> {n}</div>"
             for cat, n in top)
@@ -192,6 +228,8 @@ def doc_dettaglio(doc_id):
         r = dict(r)
         msg = ""
         if request.method == "POST":
+            if not _stessa_origine():
+                abort(403)     # difesa CSRF: POST solo dalla UI stessa
             nuova_cat = request.form.get("categoria", r["categoria"]).strip("/")
             nuova_data = request.form.get("data", "").strip()
             campi = {
@@ -224,20 +262,20 @@ def doc_dettaglio(doc_id):
                                      (doc_id,)).fetchone())
             msg += "Salvato."
         opzioni = "".join(
-            f"<option {'selected' if c == r['categoria'] else ''}>{c}</option>"
+            f"<option {'selected' if c == r['categoria'] else ''}>{_h(c)}</option>"
             for c in sorted(tax.valid_paths()))
         corpo = f"""
         <p><a href="javascript:history.back()">&larr; indietro</a></p>
-        <div class="card"><h2>{r['nome_file']}</h2>
-        <p class="mut">{r['percorso']} — <a class="doc" href="/pdf/{doc_id}"
+        <div class="card"><h2>{_h(r['nome_file'])}</h2>
+        <p class="mut">{_h(r['percorso'])} — <a class="doc" href="/pdf/{doc_id}"
            target="_blank">apri PDF</a></p>
-        {"<p><b>" + msg + "</b></p>" if msg else ""}
+        {"<p><b>" + _h(msg) + "</b></p>" if msg else ""}
         <form method="post">
           <p>Categoria<br><select name="categoria" style="width:100%;padding:.4rem">{opzioni}</select></p>
-          <p>Data (AAAA-MM-GG)<br><input type="text" name="data" value="{r['data_documento']}"></p>
-          <p>Mittente<br><input type="text" name="mittente" value="{r['mittente'] or ''}"></p>
-          <p>Tipo<br><input type="text" name="tipo" value="{r['tipo'] or ''}"></p>
-          <p>Tags (separati da spazio)<br><input type="text" name="tags" value="{r['tags'] or ''}"></p>
+          <p>Data (AAAA-MM-GG)<br><input type="text" name="data" value="{_h(r['data_documento'])}"></p>
+          <p>Mittente<br><input type="text" name="mittente" value="{_h(r['mittente'] or '')}"></p>
+          <p>Tipo<br><input type="text" name="tipo" value="{_h(r['tipo'] or '')}"></p>
+          <p>Tags (separati da spazio)<br><input type="text" name="tags" value="{_h(r['tags'] or '')}"></p>
           <button>Salva</button>
         </form></div>"""
         return _pagina("cerca", corpo)
