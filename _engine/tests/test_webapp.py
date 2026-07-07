@@ -146,6 +146,36 @@ def test_no_xss_query_riflessa(client):
     assert b"<script>alert(3)</script>" not in r.data
 
 
+def test_snippet_evidenzia_e_non_esegue(client):
+    # cerca una parola presente nel testo -> snippet con <b> attorno al termine
+    r = client.get("/?q=febbraio")
+    assert b"<b>febbraio</b>" in r.data or b"<b>febbraio" in r.data
+
+
+def test_snippet_da_testo_ostile_e_escapato(tmp_path, monkeypatch):
+    # un documento con HTML nel testo: lo snippet non deve iniettare tag grezzi
+    base = tmp_path
+    (base / "archivio").mkdir(parents=True)
+    (base / "_DaSmistare").mkdir()
+    dbp = base / "t.db"
+    d = Database(dbp)
+    d.insert({"nome_file": "x.pdf", "percorso": "archivio/x.pdf",
+              "categoria": "Casa", "data_documento": "2024-01-01",
+              "mittente": "m", "tipo": "t", "tags": "",
+              "testo_completo": "prima <script>evil</script> parolachiave dopo",
+              "n_pagine": 1, "confidenza": "alta", "sha256": "sx"})
+    d.close()
+    cat = base / "categorie.yaml"; cat.write_text("Casa: []\n")
+    monkeypatch.setattr(webapp.config, "BASE", base)
+    monkeypatch.setattr(webapp.config, "DB_PATH", dbp)
+    monkeypatch.setattr(webapp.config, "DA_SMISTARE", base / "_DaSmistare")
+    monkeypatch.setattr(webapp.config, "CATEGORIE_YAML", cat)
+    c = webapp.app.test_client()
+    r = c.get("/?q=parolachiave")
+    assert b"<script>evil</script>" not in r.data      # niente tag grezzi
+    assert b"<b>parolachiave</b>" in r.data
+
+
 def test_header_sicurezza(client):
     r = client.get("/")
     assert r.headers.get("X-Frame-Options") == "DENY"

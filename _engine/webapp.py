@@ -41,6 +41,14 @@ def _u(v) -> str:
     return quote("" if v is None else str(v), safe="")
 
 
+def _snippet_html(s) -> str:
+    """Snippet FTS in HTML sicuro: prima escape (il testo e' non fidato), poi le
+    sentinelle \\x01/\\x02 diventano <b>...</b> per evidenziare il termine."""
+    if not s:
+        return ""
+    return _h(s).replace("\x01", "<b>").replace("\x02", "</b>")
+
+
 @app.after_request
 def _sicurezza(resp):
     # nessun embedding cross-site + CSP restrittiva: la UI e' self-contained
@@ -81,6 +89,7 @@ _BASE_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
  a.doc{color:#1d4ed8;text-decoration:none}
  .tag{display:inline-block;background:#e7e5e4;border-radius:6px;padding:0 .4rem;margin-right:.2rem;font-size:.8rem}
  .mut{color:#78716c;font-size:.85rem}
+ .snip b{color:#1c1917;background:#fde68a}
  ul.albero{list-style:none;padding-left:1rem}
  ul.albero li{margin:.15rem 0}
  .n{color:#78716c;font-size:.85rem}
@@ -109,6 +118,9 @@ def _tabella(righe) -> str:
     for r in righe:
         tags = "".join(f"<span class='tag'>{_h(t)}</span>"
                        for t in (r["tags"] or "").split() if t)
+        snip = _snippet_html(r["snippet"]) if "snippet" in r.keys() else ""
+        if snip:
+            tags += f"<br><span class='mut snip'>{snip}</span>"
         out.append(_RIGA.format(
             id=int(r["id"]), data=_h(r["data_documento"]), mitt=_h(r["mittente"]),
             tipo=_h(r["tipo"]), cat=_h(r["categoria"]), cat_u=_u(r["categoria"]),

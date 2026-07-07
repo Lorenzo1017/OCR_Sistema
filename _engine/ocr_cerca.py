@@ -44,6 +44,10 @@ def main():
                    ((r['tags'] or "").strip() if 'tags' in r.keys() else "")
             if tags:
                 print(f"     tag: {tags}")
+            snip = r.get('snippet') if isinstance(r, dict) else None
+            if snip:
+                # sentinelle -> marcatori leggibili nel terminale
+                print(f"     …{snip.replace(chr(1), '»').replace(chr(2), '«')}")
             print(f"     {config.BASE / r['percorso']}\n")
     finally:
         db.close()

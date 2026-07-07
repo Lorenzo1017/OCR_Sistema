@@ -124,8 +124,12 @@ class Database:
         match = self._fts_query(query)
         if not match:
             return []
+        # snippet: estratto del testo attorno al termine trovato. I marcatori
+        # sono sentinelle non-HTML (\x01/\x02): chi mostra il risultato le
+        # sostituira' con <b>...</b> DOPO aver fatto l'escape (niente XSS).
         cur = self.conn.execute(
-            "SELECT d.* FROM documenti d "
+            "SELECT d.*, snippet(documenti_fts, 3, char(1), char(2), '…', 12) "
+            "AS snippet FROM documenti d "
             "JOIN documenti_fts f ON f.rowid = d.id "
             "WHERE documenti_fts MATCH ? ORDER BY d.data_documento DESC",
             (match,),
