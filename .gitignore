@@ -40,3 +40,5 @@ esportazioni/
 # integrazione paperless esterna (non parte del progetto)
 .paperless_stage/
 .paperless_uploaded_md5.txt
+paperless*
+ocr_to_paperless.sh
