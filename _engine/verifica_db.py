@@ -38,24 +38,42 @@ def _indicizza(db: Database, p: Path) -> bool:
         "confidenza": "reindex", "sha256": _sha(p)})
 
 
-def main():
-    d = Database(config.DB_PATH)
-    rows = list(d.conn.execute("SELECT id, percorso FROM documenti"))
+def analizza(db: Database):
+    """Ritorna (orfani, non_indicizzati, n_righe, n_disco) senza modificare nulla."""
+    rows = list(db.conn.execute("SELECT id, percorso FROM documenti"))
     in_db = {r["percorso"] for r in rows}
-
     orfani = [(r["id"], r["percorso"]) for r in rows
               if not (config.BASE / r["percorso"]).exists()]
-
     su_disco = [p for p in config.ARCHIVIO.rglob("*")
                 if p.is_file() and p.suffix.lower() == ".pdf"]
     non_indicizzati = [p for p in su_disco
                        if str(p.relative_to(config.BASE)) not in in_db]
+    return orfani, non_indicizzati, len(rows), len(su_disco)
+
+
+def riconcilia(db: Database) -> tuple:
+    """Rimuove le righe orfane e indicizza i file mancanti. Ritorna
+    (rimosse, aggiunte). Usato da ocr-check-db --fix e dalla manutenzione."""
+    orfani, non_indicizzati, _, _ = analizza(db)
+    if orfani:
+        db.conn.executemany("DELETE FROM documenti WHERE id = ?",
+                            [(i,) for i, _ in orfani])
+        db.conn.commit()
+    aggiunti = sum(1 for p in non_indicizzati if _indicizza(db, p))
+    if aggiunti:
+        db.rebuild_fts()
+    return len(orfani), aggiunti
+
+
+def main():
+    d = Database(config.DB_PATH)
+    orfani, non_indicizzati, n_righe, n_disco = analizza(d)
 
     print("=" * 50)
     print(" Coerenza DB <-> archivio")
     print("=" * 50)
-    print(f"Documenti nel DB        : {len(rows)}")
-    print(f"PDF in archivio         : {len(su_disco)}")
+    print(f"Documenti nel DB        : {n_righe}")
+    print(f"PDF in archivio         : {n_disco}")
     print(f"Righe orfane (file mancante): {len(orfani)}")
     for _id, p in orfani[:15]:
         print(f"   [X] {p}")
@@ -66,16 +84,12 @@ def main():
         print(f"   [?] {p.relative_to(config.BASE)}")
 
     if "--fix" in sys.argv:
-        if orfani:
-            d.conn.executemany("DELETE FROM documenti WHERE id = ?",
-                                [(i,) for i, _ in orfani])
-            d.conn.commit()
-            print(f"\nRimosse {len(orfani)} righe orfane dal DB.")
-        aggiunti = sum(1 for p in non_indicizzati if _indicizza(d, p))
+        rimosse, aggiunti = riconcilia(d)
+        if rimosse:
+            print(f"\nRimosse {rimosse} righe orfane dal DB.")
         if aggiunti:
-            d.rebuild_fts()
             print(f"Indicizzati {aggiunti} file che mancavano nel DB.")
-        if not orfani and not aggiunti:
+        if not rimosse and not aggiunti:
             print("\nNiente da correggere.")
     else:
         if orfani or non_indicizzati:
