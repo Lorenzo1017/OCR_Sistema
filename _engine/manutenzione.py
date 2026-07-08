@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from ocrsys import config
 from ocrsys.db import Database
 
+import arricchisci
 import backup_db
 import verifica_db
 
@@ -35,18 +36,26 @@ def main():
         except Exception as e:
             print(f"[riconcilia] ERRORE: {str(e)[:80]}")
 
-        # 3) indice semantico dei documenti nuovi (solo se Ollama + modello ok)
-        try:
-            from ocrsys import ollama_mgr, semantic
-            ollama_mgr.ensure()
-            if ollama_mgr.is_up():
+        from ocrsys import ollama_mgr, semantic
+        ollama_mgr.ensure()
+        if not ollama_mgr.is_up():
+            print("[llm] Ollama non disponibile, salto arricchimento+semantica")
+        else:
+            # 3) arricchimento metadati mancanti (tag/mittente) sui doc nuovi
+            try:
+                n = arricchisci.esegui(db, limite=300)
+                print(f"[arricchisci] metadati completati su: {n} documenti")
+            except Exception as e:
+                print(f"[arricchisci] ERRORE: {str(e)[:80]}")
+            finally:
+                ollama_mgr.stop_model()   # scarica il text prima dell'embed
+            # 4) indice semantico dei documenti nuovi
+            try:
                 n = semantic.indicizza(db)
                 print(f"[semantica] nuovi documenti indicizzati: {n}")
                 ollama_mgr.stop_modello(semantic.MODELLO)
-            else:
-                print("[semantica] Ollama non disponibile, salto")
-        except Exception as e:
-            print(f"[semantica] ERRORE: {str(e)[:80]}")
+            except Exception as e:
+                print(f"[semantica] ERRORE: {str(e)[:80]}")
     finally:
         db.close()
     print("Manutenzione completata.")

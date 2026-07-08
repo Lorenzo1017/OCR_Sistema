@@ -45,3 +45,4 @@ ocr_to_paperless.sh
 
 # prompt LLM editabili dall'utente (materializzati al primo uso)
 prompts/
+.salute.json

@@ -57,54 +57,68 @@ def _norm_tags(tags) -> str:
     return " ".join(visti[:8])
 
 
+_QUERY = ("SELECT sha256, nome_file, mittente, tags, testo_completo FROM documenti "
+          "WHERE (tags IS NULL OR tags='' OR mittente IN (?,?,?,?)) "
+          "AND LENGTH(COALESCE(testo_completo,'')) > 50")
+
+
+def _carenti(db, limite):
+    rows = db.conn.execute(_QUERY, _IGNOTI).fetchall()
+    return rows[:limite] if limite else rows
+
+
+def esegui(db, limite: int = 0, stampa: bool = False) -> int:
+    """Arricchisce i documenti carenti sul DB dato (chiede al LLM solo i campi
+    mancanti). Richiede Ollama gia' su. Ritorna quanti aggiornati. Riusabile
+    dalla manutenzione notturna e dal comando ocr-arricchisci."""
+    rows = _carenti(db, limite)
+    fatti = 0
+    for i, (sha, nome, mitt, tags, testo) in enumerate(rows, 1):
+        try:
+            d = _chiedi(testo)
+        except Exception as e:
+            if stampa:
+                print(f"[{i}/{len(rows)}] {nome[:45]} ERRORE: {str(e)[:40]}")
+            continue
+        campi = {}
+        if not tags:
+            nt = _norm_tags(d.get("tags"))
+            if nt:
+                campi["tags"] = nt
+        if (mitt or "") in _IGNOTI:
+            nm = str(d.get("mittente", "")).strip()
+            if nm and nm not in _IGNOTI:
+                campi["mittente"] = nm
+        if campi:
+            db.aggiorna_per_sha(sha, **campi)
+            fatti += 1
+            if stampa:
+                print(f"[{i}/{len(rows)}] {nome[:45]} + {', '.join(campi)}")
+    if fatti:
+        db.rebuild_fts()
+    return fatti
+
+
 def _run(dry: bool, limite: int):
     db = Database(config.DB_PATH)
-    rows = db.conn.execute(
-        "SELECT sha256, nome_file, mittente, tags, testo_completo FROM documenti "
-        "WHERE (tags IS NULL OR tags='' OR mittente IN (?,?,?,?)) "
-        "AND LENGTH(COALESCE(testo_completo,'')) > 50", _IGNOTI).fetchall()
-    if limite:
-        rows = rows[:limite]
+    rows = _carenti(db, limite)
     print(f"Da arricchire: {len(rows)} documenti{' (DRY-RUN)' if dry else ''}\n")
+    if dry:
+        for i, (sha, nome, mitt, tags, testo) in enumerate(rows, 1):
+            manca = [x for x, cond in (("tags", not tags),
+                     ("mittente", (mitt or "") in _IGNOTI)) if cond]
+            print(f"[{i}/{len(rows)}] {nome[:55]} -> manca: {','.join(manca)}")
+        db.close(); return
     if not rows:
         db.close(); return
-    if not dry:
-        ollama_mgr.ensure()
-        if not ollama_mgr.is_up():
-            print("Ollama non disponibile."); db.close(); return
-    fatti = 0
+    ollama_mgr.ensure()
+    if not ollama_mgr.is_up():
+        print("Ollama non disponibile."); db.close(); return
     try:
-        for i, (sha, nome, mitt, tags, testo) in enumerate(rows, 1):
-            if dry:
-                manca = []
-                if not tags: manca.append("tags")
-                if (mitt or "") in _IGNOTI: manca.append("mittente")
-                print(f"[{i}/{len(rows)}] {nome[:55]} -> manca: {','.join(manca)}")
-                continue
-            try:
-                d = _chiedi(testo)
-            except Exception as e:
-                print(f"[{i}/{len(rows)}] {nome[:45]} ERRORE: {str(e)[:40]}")
-                continue
-            campi = {}
-            if not tags:
-                nt = _norm_tags(d.get("tags"))
-                if nt: campi["tags"] = nt
-            if (mitt or "") in _IGNOTI:
-                nm = str(d.get("mittente", "")).strip()
-                if nm and nm not in _IGNOTI: campi["mittente"] = nm
-            if campi:
-                db.aggiorna_per_sha(sha, **campi)
-                fatti += 1
-                print(f"[{i}/{len(rows)}] {nome[:45]} + {', '.join(campi)}")
-            else:
-                print(f"[{i}/{len(rows)}] {nome[:45]} (niente di utile)")
-        if not dry and fatti:
-            db.rebuild_fts()
+        fatti = esegui(db, limite, stampa=True)
     finally:
         db.close()
-        if not dry:
-            ollama_mgr.stop_model()
+        ollama_mgr.stop_model()
     print(f"\nArricchiti: {fatti}/{len(rows)}")
 
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from ocrsys import config, email_fetch
+from ocrsys import config, email_fetch, salute
 from ocrsys.runner import run_once
 
 _MAX_LOG = 1_000_000   # 1 MB: sopra questa taglia il log viene dimezzato
@@ -41,6 +41,8 @@ def main():
             email_fetch.scarica(stampa=False)
             # niente stampa (gira in background); le notifiche avvisano l'utente
             run_once(stampa=False, notifiche=True)
+            # controllo salute: avvisa se la quarantena cresce o troppi non smistati
+            salute.controlla(notifiche=True)
         except Exception as e:
             try:
                 with config.LOG_ERRORI.open("a") as f:
