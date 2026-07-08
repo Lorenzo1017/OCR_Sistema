@@ -42,3 +42,6 @@ esportazioni/
 .paperless_uploaded_md5.txt
 paperless*
 ocr_to_paperless.sh
+
+# prompt LLM editabili dall'utente (materializzati al primo uso)
+prompts/

@@ -46,6 +46,7 @@ DB_PATH = SISTEMA / "index.db"
 LOG_RINOMINE = SISTEMA / "log_rinomine.csv"
 LOG_ERRORI = SISTEMA / "log_errori.csv"
 LOCK_PATH = SISTEMA / ".ocr.lock"              # lock unico manuale+automatico
+PROMPTS_DIR = SISTEMA / "prompts"              # prompt LLM editabili dall'utente
 EMAIL_CONFIG = SISTEMA / ".email.yaml"         # credenziali IMAP (gitignorato)
 EMAIL_STATE = SISTEMA / ".email_stato.json"    # data attivazione + Message-ID visti
 EMAIL_LOCK = SISTEMA / ".email.lock"           # evita fetch email concorrenti

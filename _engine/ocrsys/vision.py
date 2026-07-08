@@ -11,17 +11,17 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-from . import config
+from . import config, prompts
 from .classify import parse_response
 
-_PROMPT = """Sei un archivista. Guarda l'immagine del documento, LEGGILA e classificala.
+_PROMPT_DEFAULT = """Sei un archivista. Guarda l'immagine del documento, LEGGILA e classificala.
 Rispondi SOLO con un oggetto JSON, niente altro.
 
 Categorie ammesse (scegli ESATTAMENTE una di queste stringhe):
 {categorie}
 {mittenti}
 Schema:
-{{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","tags":["..."],"confidenza":"alta|media|bassa","testo":"trascrizione del testo principale"}}
+{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","tags":["..."],"confidenza":"alta|media|bassa","testo":"trascrizione del testo principale"}
 
 Regole: "data"=la data del documento (cercala con attenzione: data di emissione,
 protocollo, fattura, referto o intestazione; convertila SEMPRE in AAAA-MM-GG; se
@@ -75,8 +75,10 @@ def classifica(pdf: Path, taxonomy, mittenti_noti=None) -> dict:
         # NB: NON iniettiamo la lista mittenti noti (a differenza del modello
         # text): col vision legge il mittente direttamente dall'immagine, e la
         # lista gonfierebbe il context riducendo lo spazio per la risposta.
-        prompt = _PROMPT.format(
-            categorie="\n".join(sorted(taxonomy.valid_paths())), mittenti="")
+        template = prompts.carica("vision.txt", _PROMPT_DEFAULT)
+        prompt = prompts.riempi(
+            template, categorie="\n".join(sorted(taxonomy.valid_paths())),
+            mittenti="")
         raw = _call(prompt, b64)
     r = parse_response(raw, taxonomy)
     try:

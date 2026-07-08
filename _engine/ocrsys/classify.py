@@ -1,19 +1,20 @@
 import json
 import re
 import urllib.request
+from . import prompts
 from .config import OLLAMA_MODEL, OLLAMA_URL, OLLAMA_KEEP_ALIVE
 from .taxonomy import Taxonomy
 
 _REQUIRED = {"data", "mittente", "tipo", "dettaglio", "categoria", "confidenza"}
 
-_PROMPT = """Sei un archivista esperto. Leggi il testo OCR di un documento e
+_PROMPT_DEFAULT = """Sei un archivista esperto. Leggi il testo OCR di un documento e
 classificalo. Rispondi SOLO con un oggetto JSON, senza altro testo.
 
 Categorie ammesse (scegli ESATTAMENTE una di queste stringhe, niente altro):
 {categorie}
 {mittenti}
 Schema richiesto:
-{{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","tags":["...","..."],"confidenza":"alta|media|bassa"}}
+{"data":"AAAA-MM-GG","mittente":"...","tipo":"...","dettaglio":"...","categoria":"<una delle ammesse>","tags":["...","..."],"confidenza":"alta|media|bassa"}
 
 Regole:
 - "tags" = 2-5 parole chiave brevi minuscole (mittente, anno, tema, es. ["enel","gas","2024"]). Servono per la ricerca.
@@ -182,7 +183,9 @@ def _build_prompt(text: str, taxonomy: Taxonomy, mittenti_noti=None) -> str:
                     "riusa la STESSA grafia esatta): " + elenco + "\n")
     else:
         mittenti = ""
-    return _PROMPT.format(categorie=categorie, mittenti=mittenti, testo=text[:4000])
+    template = prompts.carica("classificazione.txt", _PROMPT_DEFAULT)
+    return prompts.riempi(template, categorie=categorie, mittenti=mittenti,
+                          testo=text[:4000])
 
 
 def classify(text: str, taxonomy: Taxonomy, mittenti_noti=None) -> dict:
