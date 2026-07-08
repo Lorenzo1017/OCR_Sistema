@@ -100,6 +100,7 @@ _BASE_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
 <header><b>📁 Archivio OCR</b>
  <a href="{{ url_for('home') }}" class="{{ 'on' if vista=='cerca' }}">Cerca</a>
  <a href="{{ url_for('sfoglia') }}" class="{{ 'on' if vista=='sfoglia' }}">Sfoglia</a>
+ <a href="{{ url_for('revisiona') }}" class="{{ 'on' if vista=='revisiona' }}">Da rivedere</a>
  <a href="{{ url_for('stats') }}" class="{{ 'on' if vista=='stats' }}">Statistiche</a>
  <a href="{{ url_for('csv_indice') }}">Scarica indice CSV</a>
 </header><main>{{ corpo|safe }}</main></body></html>"""
@@ -189,6 +190,29 @@ def sfoglia():
                 f"<span class='n'>({n})</span></li>" for c, n in cats)
             corpo = f"<h2>Categorie</h2><ul class='albero'>{voci}</ul>"
         return _pagina("sfoglia", corpo)
+    finally:
+        db.close()
+
+
+@app.route("/revisiona")
+def revisiona():
+    """Coda di revisione: i documenti che meritano un controllo umano — quelli a
+    bassa confidenza e quelli finiti in _DaSmistare (categoria incerta). Da qui
+    si apre la scheda /doc per correggere in un colpo (sposta anche il file)."""
+    db = _db()
+    try:
+        righe = [dict(r) for r in db.conn.execute(
+            "SELECT * FROM documenti "
+            "WHERE confidenza = 'bassa' OR percorso LIKE '\\_DaSmistare%' ESCAPE '\\' "
+            "ORDER BY (percorso LIKE '\\_DaSmistare%' ESCAPE '\\') DESC, "
+            "data_documento DESC")]
+        intro = (f"<h2>Da rivedere <span class='n'>({len(righe)})</span></h2>"
+                 "<p class='mut'>Documenti a bassa confidenza o non smistati. "
+                 "Clicca la matita per correggere categoria/data/mittente "
+                 "(sposta anche il file).</p>" if righe else
+                 "<h2>Da rivedere</h2><p class='mut'>Niente da rivedere: "
+                 "tutto classificato con buona confidenza. 🎉</p>")
+        return _pagina("revisiona", intro + _tabella(righe))
     finally:
         db.close()
 

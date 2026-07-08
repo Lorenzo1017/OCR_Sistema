@@ -146,6 +146,27 @@ def test_no_xss_query_riflessa(client):
     assert b"<script>alert(3)</script>" not in r.data
 
 
+def test_revisiona_raccoglie_bassa_confidenza_e_dasmistare(client):
+    import webapp as w
+    d = Database(w.config.DB_PATH)
+    d.insert({"nome_file": "incerto.pdf", "percorso": "archivio/Casa/incerto.pdf",
+              "categoria": "Casa", "data_documento": "2024-05-05",
+              "mittente": "Boh", "tipo": "x", "tags": "",
+              "testo_completo": "roba incerta", "n_pagine": 1,
+              "confidenza": "bassa", "sha256": "slow"})
+    d.insert({"nome_file": "smist.pdf", "percorso": "_DaSmistare/smist.pdf",
+              "categoria": "", "data_documento": "0000-00-00",
+              "mittente": "", "tipo": "documento", "tags": "",
+              "testo_completo": "non smistato", "n_pagine": 1,
+              "confidenza": "alta", "sha256": "sdas"})
+    d.close()
+    r = client.get("/revisiona")
+    assert r.status_code == 200
+    assert b"incerto.pdf" in r.data and b"smist.pdf" in r.data
+    # un documento ben classificato NON deve comparire
+    assert b"2023-02-02_Enel_bolletta_luce.pdf" not in r.data
+
+
 def test_snippet_evidenzia_e_non_esegue(client):
     # cerca una parola presente nel testo -> snippet con <b> attorno al termine
     r = client.get("/?q=febbraio")
