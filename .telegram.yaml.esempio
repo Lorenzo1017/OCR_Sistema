@@ -1,0 +1,5 @@
+# Copia in ".telegram.yaml" (stessa cartella), poi: chmod 600 .telegram.yaml
+# 1) Su Telegram apri @BotFather -> /newbot -> ottieni il token
+token: "123456789:ABCdef-il-tuo-token"
+# 2) Lascia vuoto, scrivi /start al bot: ti dira' il tuo chat_id. Mettilo qui.
+chat_id: []
