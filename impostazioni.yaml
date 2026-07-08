@@ -13,3 +13,9 @@ ocr_workers: 2
 # categorie archiviate in sottocartelle per anno (dalla data del documento)
 categorie_per_anno:
   - Salute/Referti
+
+# Righe da togliere dal testo PRIMA della classificazione (boilerplate ripetuto).
+# Regex, una per voce. Il testo completo resta comunque salvato per la ricerca.
+# rimuovi_dal_testo:
+#   - "Azienda certificata ISO.*"
+#   - "Documento generato automaticamente.*"

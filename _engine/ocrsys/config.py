@@ -112,6 +112,12 @@ OCR_WORKERS = int(_IMP.get("ocr_workers", max(1, min(4, (os.cpu_count() or 4) - 
 _cpa = _IMP.get("categorie_per_anno", ["Salute/Referti"])
 CATEGORIE_PER_ANNO = [str(c).strip("/") for c in _cpa] if isinstance(_cpa, list) else []
 
+# Regex (una per riga) di testo da rimuovere PRIMA della classificazione LLM:
+# boilerplate ripetuto (disclaimer, intestazioni). Override in impostazioni.yaml
+# -> rimuovi_dal_testo: ["Azienda certificata ISO.*", "..."].
+_rdt = _IMP.get("rimuovi_dal_testo", [])
+RIMUOVI_REGEX = [str(p) for p in _rdt] if isinstance(_rdt, list) else []
+
 # Se True, salva una copia degli originali in _Sistema/originali/originali.zip.
 # Override in impostazioni.yaml -> backup_originali: false (l'archivio e' gia'
 # la copia catalogata; disattivandolo non si tiene l'originale pristino).

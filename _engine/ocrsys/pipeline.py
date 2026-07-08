@@ -10,6 +10,7 @@ from typing import Callable
 from . import config
 from .db import Database
 from .dates import extract_date, normalize_date
+from .testo import pulisci
 from .naming import build_name, dir_categoria, resolve_collision
 from .taxonomy import Taxonomy
 
@@ -62,9 +63,11 @@ def _classifica(src, ctx, text, conferma):
         mittenti = ctx.db.known_senders()
     except Exception:
         mittenti = None
-    meta = ctx.classify(text, ctx.taxonomy, mittenti)
+    # il LLM classifica sul testo RIPULITO dal boilerplate (meno rumore, prompt
+    # piu' corto); il testo completo resta comunque salvato in DB per la ricerca.
+    meta = ctx.classify(pulisci(text), ctx.taxonomy, mittenti)
     # Qwen puo' restituire data in formati vari (15/03/2024): normalizza sempre
-    # in AAAA-MM-GG, con fallback all'estrazione dal testo.
+    # in AAAA-MM-GG, con fallback all'estrazione dal testo (completo).
     data = normalize_date(meta.get("data")) or extract_date(text)
     if conferma is not None:
         meta, data = conferma(src.name, meta, data)
