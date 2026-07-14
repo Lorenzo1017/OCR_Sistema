@@ -1,12 +1,27 @@
 # Project summary — OCR_Sistema
 
-**Version 1.2** · July 2026 · Lorenzo Chieregato · MIT license
+**Version 1.3** · July 2026 · Lorenzo Chieregato · MIT license
 
 A system for the automatic filing of scanned documents, **100% local and offline**.
 Put your scans in a folder; the system runs OCR, classifies them with a local LLM,
 renames them, and sorts them into topic folders on its own.
 
 ---
+
+## What's new in 1.3
+
+- **Content de-duplication**: same document scanned/exported twice is detected by a
+  normalized-text signature; the fuller copy is kept, the other moved to
+  `duplicati/` (reversible). High text threshold prevents false positives.
+- **Scanner-aware pause**: processing pauses while a scanner app is open, so
+  half-written scans are never picked up.
+- **Review queue** (web) + **Telegram bot** to search the archive from your phone.
+- **Boilerplate cleaner** before the LLM; **editable prompts** in `prompts/*.txt`.
+- **Nightly maintenance**: integrity-checked DB backup (rotated), DB↔files
+  reconcile, de-dup, metadata enrichment, semantic reindex — under the shared lock.
+- **Enterprise robustness**: hard timeouts on every subprocess (no more daemon
+  hangs on a corrupt PDF), append-only `audit.log` of all mutations, proactive
+  health notifications, forced `0600` perms on secret files.
 
 ## What's new in 1.2
 

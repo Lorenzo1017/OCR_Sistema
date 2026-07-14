@@ -44,14 +44,24 @@ inbox/scanned_bill.pdf
   embeddings) — find "spese dentista" even if the document says "odontoiatra".
 - **Local web UI** (`http://localhost:8077`): search, browse by category, stats,
   edit a document's category/date/sender/tags, download CSV/ZIP.
+- **Content de-duplication**: same document scanned/exported twice (different bytes)
+  is detected by a normalized-text signature; the fuller copy is kept, the other
+  moved to `duplicati/` (reversible). A high text threshold avoids false positives.
+- **Review queue**: a web page collecting low-confidence and unsorted documents to
+  fix in one place; a Telegram bot to search the archive from your phone.
+- **Scanner-aware**: pauses processing while a scanner app is open (no half-written
+  scans); a boilerplate cleaner strips repeated headers before the LLM.
 - **Exports**: full catalog to CSV, ZIP by category or by search, full backup.
+- **Editable prompts**: the classification/vision prompts live in `prompts/*.txt`.
 - **Safe**: uncertain documents go to `_DaSmistare/` (never filed at random);
-  duplicates are detected by content hash; operations are reversible.
+  operations are reversible; an append-only `audit.log` records every mutation.
+- **Robust**: hard timeouts on every subprocess (a corrupt PDF can't hang the
+  daemon), single-lock mutual exclusion, quarantine + retry, health notifications.
 - **Hardened web UI**: HTML-escaped output (no XSS from document content),
   CSRF-protected edits, restrictive CSP, localhost-only.
-- **Reliable storage**: SQLite in WAL mode (safe concurrent read/write), nightly
-  maintenance job — consistent DB backup (rotated), DB↔files reconcile, semantic
-  reindex of new documents.
+- **Reliable storage**: SQLite in WAL mode (safe concurrent read/write); nightly
+  maintenance — integrity-checked DB backup (rotated), DB↔files reconcile,
+  de-dup, metadata enrichment, semantic reindex.
 - **Cross-platform**: macOS, Linux, Windows, with native notifications.
 - **Ollama at rest**: models (~5GB) are unloaded from RAM when idle.
 
@@ -91,8 +101,12 @@ LLM model) and configures automatic startup (LaunchAgent / systemd / Task Schedu
 | `ocr-esporta indice\|categoria\|cerca\|backup` | CSV / ZIP / full backup |
 | `ocr-arricchisci` | LLM pass to fill missing tags/sender |
 | `ocr-indicizza` | (re)build the semantic index |
+| `ocr-duplicati [--applica]` | find duplicate documents, keep the fuller copy |
 | `ocr-vision-recover` | classify image-only scans with the vision model |
 | `ocr-recupera` | reprocess the quarantine (`_DaSmistare/_errori`) |
+| `ocr-manutenzione` | run the nightly maintenance now |
+| `ocr-backup-db` | integrity-checked DB snapshot (rotated) |
+| `ocr-telegram` | run the Telegram search bot |
 | `ocr-check` / `ocr-check-db --fix` | diagnostics · DB↔files reconcile |
 | `ocr-scarica-email` | fetch labelled Gmail PDFs now |
 
@@ -107,14 +121,16 @@ cd _engine && .venv/bin/python -m pytest tests/ -q
 ## Architecture
 - `_engine/ocrsys/` — modules (config, ocr, classify, pipeline, runner, db,
   taxonomy, dates, naming, locking, notify, ollama_mgr, hardware, preflight,
-  vision, email_fetch, semantic, export)
+  vision, email_fetch, semantic, export, testo, dedup, scanner_lock, salute,
+  telegram, prompts, audit)
 - `_engine/watch.py` — cross-OS daemon · `webapp.py` — local web UI ·
-  command entry points: `ocr_processa.py`, `ocr_cerca.py`, `stato.py`, `sposta.py`,
-  `esporta.py`, `arricchisci.py`, `indicizza_semantica.py`, `ocr_vision_recover.py`,
-  `recupera_quarantena.py`, `scarica_email.py`, `verifica_db.py`, `check.py`
-- background jobs (macOS LaunchAgents): `com.ocrsistema.watch` (OCR loop),
-  `com.ocrsistema.email` (4×/day intake), `com.ocrsistema.web` (web UI)
-- data (gitignored): `inbox/ archivio/ _DaSmistare/`; system files under `_Sistema/`
+  `manutenzione.py` — nightly job · plus one entry point per command
+- background jobs (macOS LaunchAgents): `com.ocrsistema.watch` (OCR loop +
+  email + scanner-pause + health), `com.ocrsistema.email` (4×/day intake),
+  `com.ocrsistema.web` (web UI), `com.ocrsistema.manutenzione` (nightly:
+  backup + reconcile + de-dup + enrich + reindex)
+- data (gitignored): `inbox/ archivio/ _DaSmistare/`; system files, logs,
+  `duplicati/`, `prompts/`, `audit.log` under `_Sistema/`
 
 ## Contributing
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
