@@ -19,3 +19,9 @@ categorie_per_anno:
 # rimuovi_dal_testo:
 #   - "Azienda certificata ISO.*"
 #   - "Documento generato automaticamente.*"
+
+# App che, se APERTE, mettono in pausa il processamento (es. lo scanner: mentre
+# scansiona scrive PDF a meta' in inbox). Il daemon riprende da solo quando le
+# chiudi. Nome come l'app in /Applicazioni.
+pausa_se_app_attiva:
+  - Image Capture      # "Acquisizione Immagine" (scanner integrato macOS)

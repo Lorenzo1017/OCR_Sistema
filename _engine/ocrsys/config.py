@@ -119,6 +119,12 @@ CATEGORIE_PER_ANNO = [str(c).strip("/") for c in _cpa] if isinstance(_cpa, list)
 _rdt = _IMP.get("rimuovi_dal_testo", [])
 RIMUOVI_REGEX = [str(p) for p in _rdt] if isinstance(_rdt, list) else []
 
+# App la cui presenza METTE IN PAUSA il processamento (es. lo scanner: mentre
+# scansiona scrive PDF a meta' in inbox). Confronto sul comando del processo.
+# Override in impostazioni.yaml -> pausa_se_app_attiva: ["Image Capture", ...].
+_psa = _IMP.get("pausa_se_app_attiva", ["Image Capture"])
+PAUSA_APP = [str(a) for a in _psa] if isinstance(_psa, list) else []
+
 # Se True, salva una copia degli originali in _Sistema/originali/originali.zip.
 # Override in impostazioni.yaml -> backup_originali: false (l'archivio e' gia'
 # la copia catalogata; disattivandolo non si tiene l'originale pristino).

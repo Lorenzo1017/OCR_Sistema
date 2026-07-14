@@ -4,7 +4,7 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from . import config, preflight, ollama_mgr
+from . import config, preflight, ollama_mgr, scanner_lock
 from .dates import normalize_date
 from .locking import SingleInstanceLock, AlreadyRunning
 from .notify import notify
@@ -268,6 +268,15 @@ def run_once(stampa=True, notifiche=True, dry_run=False, interattivo=False) -> s
     dry_run: mostra solo cosa farebbe. interattivo: chiede conferma per file."""
     conferma = _conferma_interattiva if interattivo else None
     config.ensure_dirs()   # crea le cartelle dati se mancano (clone fresco)
+    # se un'app di scansione e' aperta, NON processare: evita di prendere PDF
+    # scritti a meta' durante la scansione. Riprende al giro dopo, a app chiusa.
+    if not dry_run:
+        app = scanner_lock.app_scanner_attiva()
+        if app:
+            msg = f"In pausa: '{app}' aperta (scanner). Riprendo quando la chiudi."
+            if stampa:
+                print(msg)
+            return msg
     problemi = preflight.check()
     if problemi:
         msg = "Ambiente non pronto: " + " | ".join(problemi)
