@@ -24,7 +24,8 @@ def _dir() -> Path:
 
 
 def _snapshot(dest: Path):
-    """Copia consistente del DB anche se un altro processo sta scrivendo."""
+    """Copia consistente del DB anche se un altro processo sta scrivendo, poi
+    ne verifica l'integrita': un backup corrotto e' peggio di nessun backup."""
     src = sqlite3.connect(str(config.DB_PATH), timeout=30)
     try:
         out = sqlite3.connect(str(dest))
@@ -34,6 +35,15 @@ def _snapshot(dest: Path):
             out.close()
     finally:
         src.close()
+    # verifica: il backup si apre e supera integrity_check?
+    chk = sqlite3.connect(str(dest))
+    try:
+        esito = chk.execute("PRAGMA integrity_check").fetchone()
+    finally:
+        chk.close()
+    if not esito or esito[0] != "ok":
+        dest.unlink(missing_ok=True)
+        raise RuntimeError(f"backup corrotto (integrity_check: {esito})")
 
 
 def esegui(tieni: int = 7, oggi: str = None) -> Path:

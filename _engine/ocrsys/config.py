@@ -79,6 +79,7 @@ def ensure_dirs():
     dove sono gitignorate). Idempotente."""
     for d in (INBOX, ARCHIVIO, ORIGINALI, TEXT, DA_SMISTARE):
         d.mkdir(parents=True, exist_ok=True)
+    proteggi_segreti()   # blinda i permessi dei file con credenziali
 
 # Impostazioni opzionali editabili dall'utente (impostazioni.yaml).
 IMPOSTAZIONI_YAML = SISTEMA / "impostazioni.yaml"
@@ -94,6 +95,19 @@ def leggi_impostazioni(path) -> dict:
     except Exception:
         pass
     return {}
+
+
+def proteggi_segreti():
+    """Forza i permessi 0600 sui file che contengono credenziali (email, bot):
+    difesa in profondita' se l'utente dimentica il chmod. No-op su Windows."""
+    if os.name == "nt":
+        return
+    for f in (EMAIL_CONFIG, SISTEMA / ".telegram.yaml"):
+        try:
+            if f.exists() and (f.stat().st_mode & 0o077):
+                f.chmod(0o600)
+        except OSError:
+            pass
 
 
 _IMP = leggi_impostazioni(IMPOSTAZIONI_YAML)
