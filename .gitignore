@@ -48,3 +48,4 @@ prompts/
 .salute.json
 .telegram.yaml
 duplicati/
+audit.log

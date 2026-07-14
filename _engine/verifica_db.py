@@ -59,6 +59,9 @@ def riconcilia(db: Database) -> tuple:
         db.conn.executemany("DELETE FROM documenti WHERE id = ?",
                             [(i,) for i, _ in orfani])
         db.conn.commit()
+        from ocrsys import audit
+        audit.registra("riconcilia-orfane",
+                       f"{len(orfani)} righe DB rimosse (file mancante)")
     aggiunti = sum(1 for p in non_indicizzati if _indicizza(db, p))
     if aggiunti:
         db.rebuild_fts()

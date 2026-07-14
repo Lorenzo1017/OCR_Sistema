@@ -69,6 +69,8 @@ def main():
         relpath = str(dest.relative_to(config.BASE))
         db.aggiorna_per_sha(sha, categoria=categoria, percorso=relpath,
                             nome_file=nuovo_nome)
+        from ocrsys import audit
+        audit.registra("sposta-manuale", f"{nome}: {cat_vecchia} -> {categoria}")
         print(f"Spostato:\n  {cat_vecchia} -> {categoria}\n  {nome}")
     finally:
         db.close()

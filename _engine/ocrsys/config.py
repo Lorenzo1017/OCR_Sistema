@@ -46,6 +46,7 @@ CATEGORIE_YAML = SISTEMA / "categorie.yaml"
 DB_PATH = SISTEMA / "index.db"
 LOG_RINOMINE = SISTEMA / "log_rinomine.csv"
 LOG_ERRORI = SISTEMA / "log_errori.csv"
+AUDIT_LOG = SISTEMA / "audit.log"              # traccia le mutazioni (append-only)
 LOCK_PATH = SISTEMA / ".ocr.lock"              # lock unico manuale+automatico
 PROMPTS_DIR = SISTEMA / "prompts"              # prompt LLM editabili dall'utente
 EMAIL_CONFIG = SISTEMA / ".email.yaml"         # credenziali IMAP (gitignorato)
@@ -145,6 +146,11 @@ RIMUOVI_REGEX = [str(p) for p in _rdt] if isinstance(_rdt, list) else []
 # Override in impostazioni.yaml -> pausa_se_app_attiva: ["Image Capture", ...].
 _psa = _IMP.get("pausa_se_app_attiva", ["Image Capture"])
 PAUSA_APP = [str(a) for a in _psa] if isinstance(_psa, list) else []
+
+# Token opzionale per la web UI: se valorizzato in impostazioni.yaml -> web_token,
+# la UI locale richiede quel token (protegge da altri utenti dello stesso Mac).
+# Vuoto = nessuna autenticazione (comportamento di default).
+WEB_TOKEN = str(_IMP.get("web_token", "")).strip()
 
 # Se True, salva una copia degli originali in _Sistema/originali/originali.zip.
 # Override in impostazioni.yaml -> backup_originali: false (l'archivio e' gia'

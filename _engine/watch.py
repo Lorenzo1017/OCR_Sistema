@@ -19,7 +19,7 @@ def _ruota_log():
     """Tiene i log sotto controllo: se superano 1MB ne conserva solo la
     seconda meta' (le righe piu' recenti). Nessuna dipendenza, cross-OS."""
     nomi = ("log_auto.txt", "log_web.txt", "log_email.txt", "log_errori.csv",
-            "log_manutenzione.txt", "log_backup.txt")
+            "log_manutenzione.txt", "log_backup.txt", "audit.log")
     for nome in nomi:
         p = config.SISTEMA / nome
         try:

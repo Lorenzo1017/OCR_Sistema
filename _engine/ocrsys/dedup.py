@@ -11,7 +11,7 @@ dichiararli uguali)."""
 import hashlib
 import re
 
-from . import config
+from . import audit, config
 from .naming import resolve_collision
 
 _SOLO_ALNUM = re.compile(r"[^0-9a-zà-ÿ]+", re.IGNORECASE)
@@ -79,6 +79,8 @@ def _sposta_in_duplicati(db, row) -> bool:
         db.conn.execute("DELETE FROM documenti WHERE sha256 = ?",
                         (row["sha256"],))
         db.conn.commit()
+        audit.registra("dedup-sposta",
+                       f"{row['percorso']} -> duplicati/ (duplicato)")
         return True
     except OSError:
         return False
@@ -95,6 +97,9 @@ def risolvi_gruppo(db, firma: str, stampa=False) -> int:
         return 0
     rows = sorted(rows, key=corposita, reverse=True)
     tenuto, perdenti = rows[0], rows[1:]
+    if perdenti:
+        audit.registra("dedup-gruppo",
+                       f"tengo {tenuto['percorso']} ({len(perdenti)} duplicati)")
     mossi = 0
     for r in perdenti:
         if _sposta_in_duplicati(db, r):

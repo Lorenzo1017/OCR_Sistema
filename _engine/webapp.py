@@ -5,6 +5,7 @@ tags). Solo localhost.
 Avvio manuale:  ocr-web        (http://localhost:8077)
 Automatico:     LaunchAgent com.ocrsistema.web
 """
+import hmac
 import os
 import sys
 from pathlib import Path
@@ -47,6 +48,33 @@ def _snippet_html(s) -> str:
     if not s:
         return ""
     return _h(s).replace("\x01", "<b>").replace("\x02", "</b>")
+
+
+_LOGIN = ("<!doctype html><meta charset=utf-8><title>Archivio OCR</title>"
+          "<div style='font-family:sans-serif;max-width:340px;margin:15vh auto'>"
+          "<h2>🔒 Archivio OCR</h2><form method=get>"
+          "<input name=k type=password placeholder='token di accesso' "
+          "style='width:100%;padding:.6rem;font-size:1rem' autofocus>"
+          "<button style='margin-top:.6rem;padding:.5rem 1rem'>Entra</button>"
+          "</form></div>")
+
+
+@app.before_request
+def _autenticazione():
+    """Se e' configurato un web_token, la UI lo richiede (cookie o ?k=...).
+    Confronto a tempo costante contro timing attack. Nessun token = UI aperta."""
+    token = config.WEB_TOKEN
+    if not token:
+        return None
+    fornito = request.args.get("k") or request.cookies.get("ocr_auth") or ""
+    if hmac.compare_digest(fornito, token):
+        if request.args.get("k"):     # arrivato via URL: salva cookie, pulisci
+            resp = redirect(request.path)
+            resp.set_cookie("ocr_auth", token, httponly=True,
+                            samesite="Strict", max_age=30 * 24 * 3600)
+            return resp
+        return None
+    return _LOGIN, 401
 
 
 @app.after_request
@@ -294,6 +322,10 @@ def doc_dettaglio(doc_id):
                     campi["percorso"] = str((dd / nuovo).relative_to(config.BASE))
             db.aggiorna_per_sha(r["sha256"], **campi)
             db.rebuild_fts()     # gli UPDATE non passano dai trigger FTS
+            from ocrsys import audit
+            audit.registra("web-modifica",
+                           f"doc {doc_id}: " + ", ".join(f"{k}={v}"
+                           for k, v in campi.items() if k != "percorso"))
             r = dict(db.conn.execute("SELECT * FROM documenti WHERE id=?",
                                      (doc_id,)).fetchone())
             msg += "Salvato."
