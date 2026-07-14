@@ -197,30 +197,6 @@ def test_snippet_da_testo_ostile_e_escapato(tmp_path, monkeypatch):
     assert b"<b>parolachiave</b>" in r.data
 
 
-def test_auth_disattivata_default(client):
-    import webapp as w
-    w.config.WEB_TOKEN = ""
-    assert client.get("/").status_code == 200
-
-
-def test_auth_blocca_senza_token(client):
-    import webapp as w
-    w.config.WEB_TOKEN = "segreto123"
-    try:
-        r = client.get("/")
-        assert r.status_code == 401 and b"token di accesso" in r.data
-        # token sbagliato -> ancora bloccato
-        assert client.get("/?k=xxx").status_code == 401
-        # token giusto via query -> redirect che imposta il cookie
-        r = client.get("/?k=segreto123")
-        assert r.status_code == 302 and "ocr_auth" in r.headers.get("Set-Cookie", "")
-        # con il cookie -> passa
-        client.set_cookie("ocr_auth", "segreto123")
-        assert client.get("/").status_code == 200
-    finally:
-        w.config.WEB_TOKEN = ""
-
-
 def test_header_sicurezza(client):
     r = client.get("/")
     assert r.headers.get("X-Frame-Options") == "DENY"

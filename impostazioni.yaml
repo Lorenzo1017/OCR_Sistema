@@ -26,6 +26,3 @@ categorie_per_anno:
 pausa_se_app_attiva:
   - Image Capture      # "Acquisizione Immagine" (scanner integrato macOS)
 
-# Token opzionale per la web UI (protegge da altri utenti dello stesso Mac).
-# Vuoto/assente = nessuna richiesta. Per attivarlo: metti una frase segreta.
-# web_token: "una-frase-lunga-e-segreta"
