@@ -11,6 +11,7 @@ from . import config
 from .db import Database
 from .dates import extract_date, normalize_date
 from .testo import pulisci
+from . import dedup
 from .naming import build_name, dir_categoria, resolve_collision
 from .taxonomy import Taxonomy
 
@@ -109,6 +110,7 @@ def _commit_job(job: dict, ctx, conferma=None) -> str:
         name = resolve_collision(dest_dir, name)
         shutil.move(str(tmp_pdf), str(dest_dir / name))
         rel = (dest_dir / name).relative_to(ctx.base)
+        firma = dedup.firma_testo(text)
         ctx.db.insert({
             "nome_file": name, "percorso": str(rel),
             "categoria": meta.get("categoria", "_DaSmistare"),
@@ -117,8 +119,13 @@ def _commit_job(job: dict, ctx, conferma=None) -> str:
             "tags": " ".join(meta.get("tags") or []),
             "testo_completo": text, "n_pagine": n_pagine,
             "confidenza": meta.get("confidenza", "bassa"), "sha256": sha,
+            "firma": firma,
         })
         _log_rinomina(ctx.log_rinomine, src.name, str(rel))
+        # se esiste gia' lo stesso documento (stessa firma), tieni il piu'
+        # corposo e sposta gli altri in duplicati/ (il nuovo compreso, se perde).
+        if firma:
+            dedup.risolvi_gruppo(ctx.db, firma)
         return status
     finally:
         shutil.rmtree(job["tmpdir"], ignore_errors=True)

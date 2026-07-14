@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS documenti (
     nome_file TEXT, percorso TEXT, categoria TEXT,
     data_documento TEXT, mittente TEXT, tipo TEXT, tags TEXT DEFAULT '',
     testo_completo TEXT, n_pagine INTEGER, confidenza TEXT,
-    sha256 TEXT UNIQUE, data_processato TEXT DEFAULT (datetime('now'))
+    sha256 TEXT UNIQUE, firma TEXT, data_processato TEXT DEFAULT (datetime('now'))
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS documenti_fts USING fts5(
     mittente, tipo, tags, testo_completo, content='documenti', content_rowid='id'
@@ -41,6 +41,9 @@ class Database:
             pass
         self.conn.executescript(_SCHEMA)
         self._migrate()
+        # indice sulla firma (dopo _migrate: la colonna esiste sia sui DB nuovi
+        # sia su quelli migrati)
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_firma ON documenti(firma)")
         self.conn.commit()
 
     def _migrate(self):
@@ -49,6 +52,9 @@ class Database:
         cols = [r[1] for r in self.conn.execute("PRAGMA table_info(documenti)")]
         if "tags" not in cols:
             self.conn.execute("ALTER TABLE documenti ADD COLUMN tags TEXT DEFAULT ''")
+        if "firma" not in cols:   # dedup per contenuto (testo normalizzato)
+            self.conn.execute("ALTER TABLE documenti ADD COLUMN firma TEXT")
+            self.conn.execute("CREATE INDEX IF NOT EXISTS idx_firma ON documenti(firma)")
         fts_cols = [r[1] for r in self.conn.execute("PRAGMA table_info(documenti_fts)")]
         if "tags" not in fts_cols:
             self.conn.executescript("""
@@ -76,7 +82,7 @@ class Database:
         """Ritorna True se inserito, False se gia' presente (sha duplicato)."""
         cols = ["nome_file", "percorso", "categoria", "data_documento",
                 "mittente", "tipo", "tags", "testo_completo", "n_pagine",
-                "confidenza", "sha256"]
+                "confidenza", "sha256", "firma"]
         placeholders = ", ".join("?" for _ in cols)
         cur = self.conn.execute(
             f"INSERT OR IGNORE INTO documenti ({', '.join(cols)}) "

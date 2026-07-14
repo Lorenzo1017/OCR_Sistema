@@ -36,6 +36,14 @@ def main():
         except Exception as e:
             print(f"[riconcilia] ERRORE: {str(e)[:80]}")
 
+        # 2b) deduplica per contenuto: tiene il piu' corposo, sposta gli altri
+        try:
+            from ocrsys import dedup
+            mossi = dedup.dedup_tutto(db)
+            print(f"[dedup] duplicati spostati in duplicati/: {mossi}")
+        except Exception as e:
+            print(f"[dedup] ERRORE: {str(e)[:80]}")
+
         from ocrsys import ollama_mgr, semantic
         ollama_mgr.ensure()
         if not ollama_mgr.is_up():

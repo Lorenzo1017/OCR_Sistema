@@ -40,6 +40,7 @@ DA_SMISTARE_ERRORI = DA_SMISTARE / "_errori"   # quarantena file irrecuperabili
 
 # file/cartelle di sistema (dentro _Sistema quando riordinato)
 ORIGINALI = SISTEMA / "originali"
+DUPLICATI = SISTEMA / "duplicati"    # copie meno corpose tolte dall'archivio
 TEXT = SISTEMA / "text"
 CATEGORIE_YAML = SISTEMA / "categorie.yaml"
 DB_PATH = SISTEMA / "index.db"

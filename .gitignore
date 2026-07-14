@@ -47,3 +47,4 @@ ocr_to_paperless.sh
 prompts/
 .salute.json
 .telegram.yaml
+duplicati/
