@@ -42,7 +42,7 @@ def _render(pdf: Path, out_dir: Path, pagine: int = 2, lato_max: int = 2000) -> 
     subprocess.run(
         ["pdftoppm", "-png", "-f", "1", "-l", str(pagine),
          "-scale-to", str(lato_max), str(pdf), str(out_dir / "pag")],
-        check=True, capture_output=True,
+        check=True, capture_output=True, timeout=config.RENDER_TIMEOUT,
     )
     return sorted(out_dir.glob("pag*.png"))
 

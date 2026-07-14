@@ -107,6 +107,12 @@ OCR_LINGUE = str(_IMP.get("ocr_lingue", "ita"))
 # Override in impostazioni.yaml -> ocr_workers.
 OCR_WORKERS = int(_IMP.get("ocr_workers", max(1, min(4, (os.cpu_count() or 4) - 2))))
 
+# Timeout duro (secondi) per un singolo OCR: oltre, il file va in quarantena
+# senza bloccare il daemon. Override in impostazioni.yaml -> ocr_timeout.
+OCR_TIMEOUT = int(_IMP.get("ocr_timeout", 300))
+# Timeout render pagina->immagine (pdftoppm) per la vision.
+RENDER_TIMEOUT = int(_IMP.get("render_timeout", 120))
+
 # Categorie archiviate in sottocartelle per ANNO (dalla data del documento):
 # archivio/<categoria>/<AAAA>/file.pdf. L'LLM non le vede: sceglie solo la
 # categoria, l'anno lo aggiunge il sistema. Senza data -> radice categoria.

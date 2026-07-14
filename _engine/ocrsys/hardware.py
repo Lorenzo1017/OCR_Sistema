@@ -19,7 +19,7 @@ def ram_gb():
                     if line.startswith("MemTotal:"):
                         return int(line.split()[1]) / 1024 / 1024
         elif s == "Darwin":
-            out = subprocess.check_output(["sysctl", "-n", "hw.memsize"])
+            out = subprocess.check_output(["sysctl", "-n", "hw.memsize"], timeout=5)
             return int(out) / (1024 ** 3)
         elif s == "Windows":
             import ctypes

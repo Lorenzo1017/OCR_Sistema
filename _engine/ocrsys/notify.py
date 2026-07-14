@@ -25,13 +25,13 @@ def notify(title: str, message: str) -> None:
                 ["osascript", "-e",
                  f'display notification "{m}" with title "{t}" '
                  f'sound name "Glass"'],
-                check=False, capture_output=True,
+                check=False, capture_output=True, timeout=10,
             )
         elif system == "Linux":
             # argomenti passati come lista -> nessuna shell, nessuna injection
             if shutil.which("notify-send"):
                 subprocess.run(["notify-send", str(title), str(message)],
-                               check=False, capture_output=True)
+                               check=False, capture_output=True, timeout=10)
         elif system == "Windows":
             title, message = _win(title), _win(message)
             # Toast via PowerShell (nessuna dipendenza esterna).
@@ -50,6 +50,6 @@ def notify(title: str, message: str) -> None:
                 "CreateToastNotifier('OCR Sistema').Show($n);"
             )
             subprocess.run(["powershell", "-NoProfile", "-Command", ps],
-                           check=False, capture_output=True)
+                           check=False, capture_output=True, timeout=15)
     except Exception:
         pass

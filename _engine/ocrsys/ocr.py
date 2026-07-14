@@ -11,11 +11,20 @@ _COMMON = ["-l", config.OCR_LINGUE, "--deskew", "--rotate-pages",
            "--image-dpi", "300"]
 
 
+# Timeout duro sull'OCR: un PDF corrotto puo' far girare ocrmypdf/tesseract
+# all'infinito e bloccare il daemon. Su timeout si solleva -> il documento va in
+# quarantena dopo i tentativi, il daemon NON si blocca. Override in
+# impostazioni.yaml -> ocr_timeout (secondi).
 def _run(src: Path, out_pdf: Path, mode: str) -> None:
-    r = subprocess.run(
-        ["ocrmypdf", *_COMMON, mode, str(src), str(out_pdf)],
-        capture_output=True,
-    )
+    try:
+        r = subprocess.run(
+            ["ocrmypdf", *_COMMON, mode, str(src), str(out_pdf)],
+            capture_output=True, timeout=config.OCR_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        # trattalo come fallimento del comando (stessa gestione a monte)
+        raise subprocess.CalledProcessError(
+            124, "ocrmypdf", stderr=f"timeout dopo {config.OCR_TIMEOUT}s")
     if r.returncode != 0:
         # include lo stderr di ocrmypdf nel messaggio (altrimenti il log dice
         # solo "exit status N" e il debug e' impossibile)

@@ -53,10 +53,10 @@ def restart(timeout: int = 40) -> bool:
         return False
     if _WIN:
         subprocess.run(["taskkill", "/F", "/IM", "ollama.exe"],
-                       check=False, capture_output=True)
+                       check=False, capture_output=True, timeout=15)
     else:
         subprocess.run(["pkill", "-9", "-f", "ollama"],
-                       check=False, capture_output=True)
+                       check=False, capture_output=True, timeout=15)
     time.sleep(2)
     kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
     if _WIN:
@@ -88,7 +88,7 @@ def stop_modello(nome: str):
     """Scarica dalla RAM un modello specifico (per nome)."""
     if nome and shutil.which("ollama"):
         subprocess.run(["ollama", "stop", nome],
-                       check=False, capture_output=True)
+                       check=False, capture_output=True, timeout=20)
 
 
 def stop_model():
@@ -108,7 +108,7 @@ def stop_server(proc):
                 proc.wait(timeout=8)
             except Exception:
                 subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)],
-                               check=False, capture_output=True)
+                               check=False, capture_output=True, timeout=15)
         else:
             os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             try:

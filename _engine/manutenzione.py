@@ -17,16 +17,10 @@ from ocrsys.db import Database
 import arricchisci
 import backup_db
 import verifica_db
+from ocrsys.locking import SingleInstanceLock, AlreadyRunning
 
 
-def main():
-    # 1) backup del DB (indipendente da tutto il resto)
-    try:
-        dest = backup_db.esegui(tieni=7)
-        print(f"[backup] {dest.name}")
-    except Exception as e:
-        print(f"[backup] ERRORE: {str(e)[:80]}")
-
+def _lavoro_db():
     db = Database(config.DB_PATH)
     try:
         # 2) riconciliazione DB <-> archivio
@@ -66,6 +60,25 @@ def main():
                 print(f"[semantica] ERRORE: {str(e)[:80]}")
     finally:
         db.close()
+
+
+def main():
+    # 1) backup del DB: snapshot consistente via API SQLite, sicuro anche se il
+    #    daemon sta scrivendo -> NON serve il lock.
+    try:
+        dest = backup_db.esegui(tieni=7)
+        print(f"[backup] {dest.name}")
+    except Exception as e:
+        print(f"[backup] ERRORE: {str(e)[:80]}")
+    # 2) il resto (riconcilia/dedup/arricchisci/semantica) MODIFICA il DB e
+    #    l'indice FTS: prende il lock unico per non girare insieme al daemon
+    #    (rebuild_fts concorrenti corromperebbero l'indice).
+    try:
+        with SingleInstanceLock(config.LOCK_PATH):
+            _lavoro_db()
+    except AlreadyRunning:
+        print("[manutenzione] daemon occupato: rimando il lavoro DB al prossimo giro.")
+        return
     print("Manutenzione completata.")
 
 

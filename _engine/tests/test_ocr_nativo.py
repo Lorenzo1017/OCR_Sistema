@@ -45,6 +45,18 @@ def test_firmato_senza_layer_ocr_usa_nativo(tmp_path, monkeypatch):
     assert out.exists()
 
 
+def test_run_timeout_diventa_errore(tmp_path, monkeypatch):
+    # se ocrmypdf va in timeout, _run solleva CalledProcessError (non appende):
+    # il documento finira' in quarantena, il daemon non si blocca.
+    src = tmp_path / "s.pdf"; src.write_bytes(b"%PDF")
+    def lento(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="ocrmypdf", timeout=1)
+    monkeypatch.setattr(ocr.subprocess, "run", lento)
+    with pytest.raises(subprocess.CalledProcessError) as e:
+        ocr._run(src, tmp_path / "o.pdf", "--skip-text")
+    assert e.value.returncode == 124
+
+
 def test_scansione_pura_fallita_solleva(tmp_path, monkeypatch):
     # nessun testo nativo e ocrmypdf fallisce -> deve sollevare (quarantena)
     src = tmp_path / "rotto.pdf"
